@@ -33,7 +33,7 @@ export default function Footer() {
               <Link to="/dashboard" className="text-sm text-slate-600 hover:text-blue-700">
                 {t('nav.dashboard', 'Dashboard')}
               </Link>
-              {navLinks.slice(0, 7).map((link) => (
+              {navLinks.slice(0, 8).map((link) => (
                 <Link key={link.href} to={link.href} className="text-sm text-slate-600 hover:text-blue-700">
                   {link.label}
                 </Link>

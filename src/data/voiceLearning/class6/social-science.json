@@ -1,0 +1,41 @@
+[
+  {
+    "id": "class6-social-science-our-neighbourhood",
+    "className": "Class 6",
+    "subject": "Social Science",
+    "contentType": "line_player",
+    "chapter": "Our Neighbourhood",
+    "description": "A simple social science lesson about people and places around us.",
+    "lines": [
+      {
+        "type": "line",
+        "text": "A neighbourhood is the area where people live together.",
+        "pause": 2,
+        "explanation": "Neighbourhood woh jagah hai jahan log saath rehte hain."
+      },
+      {
+        "type": "line",
+        "text": "It can have houses, shops, schools, and parks.",
+        "pause": 2,
+        "explanation": "Yahan ghar, dukaan, school aur park ho sakte hain."
+      },
+      {
+        "type": "line",
+        "text": "People in a neighbourhood should help and respect one another.",
+        "pause": 2,
+        "explanation": "Sabko ek dusre ki help aur respect karni chahiye."
+      },
+      {
+        "type": "checkpoint",
+        "prompt": "Samjha?",
+        "hint": "Tell the meaning in one short sentence."
+      },
+      {
+        "type": "line",
+        "text": "Clean streets and kind neighbours make life better.",
+        "pause": 2,
+        "explanation": "Saaf streets aur achhe neighbours life ko better banate hain."
+      }
+    ]
+  }
+]

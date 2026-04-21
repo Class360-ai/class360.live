@@ -1,0 +1,41 @@
+[
+  {
+    "id": "class6-science-water-cycle",
+    "className": "Class 6",
+    "subject": "Science",
+    "contentType": "line_player",
+    "chapter": "Water Cycle",
+    "description": "A theory lesson about how water moves in nature.",
+    "lines": [
+      {
+        "type": "line",
+        "text": "Water changes its form again and again in nature.",
+        "pause": 2,
+        "explanation": "Paani nature mein baar-baar shape change karta hai."
+      },
+      {
+        "type": "line",
+        "text": "The Sun heats water and turns it into vapour.",
+        "pause": 2,
+        "explanation": "Suraj garam karke water ko vapour banata hai."
+      },
+      {
+        "type": "line",
+        "text": "Clouds form when vapour cools down in the sky.",
+        "pause": 2,
+        "explanation": "Vapour thanda hokar clouds ban jata hai."
+      },
+      {
+        "type": "checkpoint",
+        "prompt": "Repeat again",
+        "hint": "Say the last line in simple words."
+      },
+      {
+        "type": "line",
+        "text": "Rain brings water back to the earth.",
+        "pause": 2,
+        "explanation": "Barish phir se water ko earth par laati hai."
+      }
+    ]
+  }
+]

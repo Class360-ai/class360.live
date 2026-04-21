@@ -20,7 +20,9 @@ export default function Navbar() {
   const navKeyForHref = (href) => {
     const map = {
       '/': 'home',
+      '/voice-learning': 'voiceLearning',
       '/courses': 'courses',
+      '/business-market-learning': 'businessMarketLearning',
       '/test-series': 'testSeries',
       '/results': 'results',
       '/educators': 'educators',
@@ -86,7 +88,7 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex">
-          {navLinks.slice(0, 7).map((item) => (
+          {navLinks.slice(0, 9).map((item) => (
             <NavLink
               key={item.href}
               to={item.href}
@@ -110,7 +112,7 @@ export default function Navbar() {
             aria-label="Toggle language"
           >
             <Languages className="h-4 w-4" />
-            {language === 'en' ? t('common.en', 'EN') : t('common.hi', 'हिंदी')}
+            {language === 'en' ? t('common.en', 'EN') : t('common.hi', 'हिन्दी')}
           </button>
           {premium ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
@@ -197,7 +199,7 @@ export default function Navbar() {
                 className="mt-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700"
               >
                 <Languages className="h-4 w-4" />
-                {language === 'en' ? t('common.hi', 'हिंदी') : t('common.en', 'EN')}
+                {language === 'en' ? t('common.hi', 'हिन्दी') : t('common.en', 'EN')}
               </button>
               {premium ? (
                 <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">

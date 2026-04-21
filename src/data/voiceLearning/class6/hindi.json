@@ -1,0 +1,41 @@
+[
+  {
+    "id": "class6-hindi-hamara-gaon",
+    "className": "Class 6",
+    "subject": "Hindi",
+    "contentType": "line_player",
+    "chapter": "Hamara Gaon",
+    "description": "A simple Hindi lesson with a slow voice flow and clear Hinglish support.",
+    "lines": [
+      {
+        "type": "line",
+        "text": "Hamara gaon har subah nayi roshni ke saath jagta hai.",
+        "pause": 2,
+        "explanation": "Gaon subah fresh aur active feel karta hai."
+      },
+      {
+        "type": "line",
+        "text": "Khet, ped aur pakshiyon ki awaaz milkar sundar mahaul banati hai.",
+        "pause": 2,
+        "explanation": "Nature ki awaaz milkar achha atmosphere banati hai."
+      },
+      {
+        "type": "line",
+        "text": "Bachche school jaate hue khushi se baat karte hain.",
+        "pause": 2,
+        "explanation": "Bachche school jaate waqt khushi se baat karte hain."
+      },
+      {
+        "type": "checkpoint",
+        "prompt": "Iska arth kya hai?",
+        "hint": "Simple Hindi mein bolkar samjhao."
+      },
+      {
+        "type": "line",
+        "text": "Mehnat aur safai se har gaon aur achha ban sakta hai.",
+        "pause": 2,
+        "explanation": "Mehnat aur safai se gaon aur better ban sakta hai."
+      }
+    ]
+  }
+]

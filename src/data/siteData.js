@@ -15,7 +15,9 @@ import {
 
 export const navLinks = [
   { label: 'Home', href: '/' },
+  { label: 'Voice Learning', href: '/voice-learning' },
   { label: 'Courses', href: '/courses' },
+  { label: 'Business & Market Learning', href: '/business-market-learning' },
   { label: 'Test Series', href: '/test-series' },
   { label: 'Results', href: '/results' },
   { label: 'Educators', href: '/educators' },

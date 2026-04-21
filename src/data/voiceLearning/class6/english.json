@@ -1,0 +1,41 @@
+[
+  {
+    "id": "class6-english-learning-together",
+    "className": "Class 6",
+    "subject": "English",
+    "contentType": "line_player",
+    "chapter": "Learning Together",
+    "description": "A gentle starter lesson that helps students read slowly, repeat clearly, and understand simply.",
+    "lines": [
+      {
+        "type": "line",
+        "text": "We learn better when we help each other.",
+        "pause": 2,
+        "explanation": "Jab hum ek dusre ki help karte hain, to learning easy ho jati hai."
+      },
+      {
+        "type": "line",
+        "text": "A friend can explain a hard word in a simple way.",
+        "pause": 2,
+        "explanation": "Dost mushkil shabd ko simple Hinglish mein samjha sakta hai."
+      },
+      {
+        "type": "line",
+        "text": "The classroom feels brighter when everyone joins in.",
+        "pause": 2,
+        "explanation": "Sab participate karte hain to class lively aur achhi lagti hai."
+      },
+      {
+        "type": "checkpoint",
+        "prompt": "Meaning samjha?",
+        "hint": "Try saying the idea in your own words."
+      },
+      {
+        "type": "line",
+        "text": "Small steps every day make strong habits.",
+        "pause": 3,
+        "explanation": "Roz thoda-thoda padhna ek strong habit banata hai."
+      }
+    ]
+  }
+]

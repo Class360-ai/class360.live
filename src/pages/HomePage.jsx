@@ -1,5 +1,19 @@
-﻿import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, BrainCircuit, GraduationCap, PlayCircle, Smartphone, Sparkles, Trophy } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  BadgeCheck,
+  BookOpen,
+  BrainCircuit,
+  ClipboardList,
+  GraduationCap,
+  PlayCircle,
+  ShieldAlert,
+  Smartphone,
+  Sparkles,
+  Target,
+  Trophy,
+  TrendingUp,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import CTASection from '../components/CTASection';
@@ -11,6 +25,12 @@ import { TestimonialCard, TestCard } from '../components/cards';
 import CourseCard from '../components/catalog/CourseCard';
 import { isAuthenticated } from '../utils/authStorage';
 import { featuredCourses, courseTrustStats } from '../data/courses';
+import { getLearningSubjectBySlug } from '../data/learningSubjectCatalog';
+import {
+  businessMarketLearningSlug,
+  getBusinessMarketChapterGroups,
+  getBusinessMarketOverview,
+} from '../data/businessMarketLearning';
 import {
   appMetrics,
   examCategories,
@@ -71,10 +91,18 @@ const liveLearningCards = [
     detail: 'Pressure-style tests with analytics that show exactly where to improve.',
     type: 'Exam Simulation',
   },
+  {
+    title: 'Suno & Repeat',
+    detail: 'Voice-first lessons across English, Hindi, Maths, Science, and Social Science.',
+    type: 'Voice Learning',
+  },
 ];
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const businessMarketSubject = getLearningSubjectBySlug(businessMarketLearningSlug);
+  const businessMarketOverview = getBusinessMarketOverview(businessMarketSubject);
+  const businessMarketGroups = getBusinessMarketChapterGroups(businessMarketSubject);
 
   const handleEnroll = () => {
     navigate(isAuthenticated() ? '/dashboard' : '/signup');
@@ -169,6 +197,123 @@ export default function HomePage() {
         </div>
       </HeroBanner>
 
+      <section className="section-container mt-8">
+        <div className="glass-card rounded-[2rem] p-5 sm:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Learning System</p>
+              <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">Class 6 Science learning path</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600">
+                Start the new study flow with video lessons, notes, practice, DPP, tests, and AI doubt solving.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/learning"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
+              >
+                Start Learning <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/learning/dashboard"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700"
+              >
+                Learning Dashboard <Sparkles className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${sectionGap} section-container`}>
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="overflow-hidden rounded-[2.4rem] border border-blue-100 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white shadow-premium">
+            <div className="p-6 sm:p-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+                <TrendingUp className="h-4 w-4" />
+                New featured category
+              </div>
+              <h2 className="mt-4 font-display text-3xl font-bold text-white sm:text-4xl">{businessMarketOverview.title}</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/75">{businessMarketOverview.subtitle}</p>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">{businessMarketOverview.description}</p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+                  {businessMarketOverview.contentLanguage}
+                </span>
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+                  Beginner to advanced learning
+                </span>
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+                  Reality check included
+                </span>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  to="/business-market-learning"
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5"
+                >
+                  Explore the category <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/business-market-learning/trading-from-zero-to-pro"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/15"
+                >
+                  Open 365-day series <TrendingUp className="h-4 w-4" />
+                </Link>
+                <Link
+                  to={`/learning/subjects/${businessMarketSubject.slug}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/15"
+                >
+                  Open course path <BookOpen className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              { label: 'Courses', value: businessMarketOverview.totalCourses, note: 'Structured learning path' },
+              { label: 'Beginner', value: businessMarketOverview.beginnerCount, note: 'Money basics to mindset' },
+              { label: 'Intermediate', value: businessMarketOverview.intermediateCount, note: 'Market and finance core' },
+              { label: 'Advanced', value: businessMarketOverview.advancedCount, note: 'Charts, systems and scaling' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[1.8rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-500">{item.label}</p>
+                <p className="mt-2 font-display text-3xl font-bold text-slate-950">{item.value}</p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{item.note}</p>
+              </div>
+            ))}
+            <div className="sm:col-span-2 rounded-[1.8rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-slate-500">Average progress</p>
+                  <p className="mt-2 font-display text-3xl font-bold text-slate-950">{businessMarketOverview.progressPercent}%</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
+                  <Target className="h-5 w-5" />
+                </div>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500"
+                  style={{ width: `${businessMarketOverview.progressPercent}%` }}
+                />
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {businessMarketGroups.levels.map((level) => (
+                  <div key={level.key} className="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{level.title}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">{level.chapters.length} courses</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="section-container mt-16">
         <StatsStrip items={stats} />
       </section>
@@ -226,6 +371,14 @@ export default function HomePage() {
               <p className="mt-3 text-sm leading-7 text-slate-600">{item.detail}</p>
             </motion.div>
           ))}
+        </div>
+        <div className="mt-6 flex justify-start">
+          <Link
+            to="/voice-learning"
+            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800"
+          >
+            Open Suno & Repeat <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
@@ -456,5 +609,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-

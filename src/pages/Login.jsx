@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { loginUser, isAuthenticated } from '../utils/authStorage';
+import { getPostAuthRoute, getStoredUser, loginUser, isAuthenticated } from '../utils/authStorage';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Login() {
@@ -15,7 +15,7 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/dashboard', { replace: true });
+      navigate(getPostAuthRoute(getStoredUser()), { replace: true });
     }
   }, [navigate]);
 
@@ -35,7 +35,7 @@ export default function Login() {
       return;
     }
 
-    navigate('/dashboard', { replace: true, state: { from: location.state?.from || '/login' } });
+    navigate(getPostAuthRoute(result.user), { replace: true, state: { from: location.state?.from || '/login' } });
   };
 
   return (

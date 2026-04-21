@@ -1,0 +1,32 @@
+[
+  {
+    "id": "class6-mathematics-fractions-basics",
+    "className": "Class 6",
+    "subject": "Mathematics",
+    "contentType": "step_player",
+    "chapter": "Fractions Basics",
+    "description": "A step-by-step maths lesson that explains fractions in simple Hinglish.",
+    "steps": [
+      {
+        "question": "What is 1/2 + 1/2?",
+        "stepText": "Pehle dono fractions ko dekho. Dono ka denominator same hai.",
+        "explanation": "Jab denominator same ho, numerator add karte hain."
+      },
+      {
+        "question": "What is 1/2 + 1/2?",
+        "stepText": "Ab numerator add karo: 1 + 1 = 2.",
+        "explanation": "Numerator add karne ke baad 2/2 milta hai."
+      },
+      {
+        "question": "What is 1/2 + 1/2?",
+        "stepText": "2/2 ka matlab hota hai 1 whole.",
+        "explanation": "Yeh ek poora whole ke barabar hai."
+      },
+      {
+        "question": "What is 1/2 + 1/2?",
+        "stepText": "Ab khud try karo: 1/4 + 1/4 kitna hoga?",
+        "explanation": "Same denominator hai, to numerator add karo."
+      }
+    ]
+  }
+]

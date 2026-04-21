@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, BookOpen, Languages, Mail, Lock, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { signupUser, isAuthenticated } from '../utils/authStorage';
+import { getPostAuthRoute, getStoredUser, signupUser, isAuthenticated, updateStoredUser } from '../utils/authStorage';
 import { useLanguage } from '../context/LanguageContext';
 
 const classGoals = ['IIT JEE', 'NEET', 'SSC', 'Banking', 'Board Exams', 'Foundation', 'Olympiad', 'CUET'];
@@ -23,10 +23,13 @@ export default function Signup() {
   });
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [showClassStep, setShowClassStep] = useState(false);
+  const [selectedClassLevel, setSelectedClassLevel] = useState('6');
+  const [pendingSchoolUser, setPendingSchoolUser] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/dashboard', { replace: true });
+      navigate(getPostAuthRoute(getStoredUser()), { replace: true });
     }
   }, [navigate]);
 
@@ -51,7 +54,7 @@ export default function Signup() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
 
-    signupUser({
+    const user = signupUser({
       fullName: form.fullName.trim(),
       email: form.email.trim(),
       password: form.password,
@@ -60,7 +63,22 @@ export default function Signup() {
       preferredLanguage: form.preferredLanguage,
     });
 
-    navigate('/dashboard', { replace: true });
+    if (user.studentType === 'school') {
+      setPendingSchoolUser(user);
+      setSelectedClassLevel(String(user.classLevel || 6));
+      setShowClassStep(true);
+      return;
+    }
+
+    navigate(getPostAuthRoute(user), { replace: true });
+  };
+
+  const finalizeSchoolSignup = () => {
+    const classLevel = Number(selectedClassLevel) || 6;
+    const updatedUser = updateStoredUser({ classLevel });
+    setShowClassStep(false);
+    setPendingSchoolUser(null);
+    navigate(getPostAuthRoute(updatedUser || pendingSchoolUser), { replace: true });
   };
 
   const fieldClass =
@@ -254,6 +272,57 @@ export default function Signup() {
           </div>
         </motion.div>
       </div>
+
+      {showClassStep ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-premium"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">School student</p>
+            <h3 className="mt-2 font-display text-2xl font-bold text-slate-950">Select class</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Choose the class for this student profile. If you skip this step, Class 6 will be used for the MVP.
+            </p>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {['6', '7', '8'].map((classValue) => {
+                const active = selectedClassLevel === classValue;
+                return (
+                  <button
+                    key={classValue}
+                    type="button"
+                    onClick={() => setSelectedClassLevel(classValue)}
+                    className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                      active
+                        ? 'border-blue-500 bg-blue-50 text-blue-800'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200'
+                    }`}
+                  >
+                    Class {classValue}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={finalizeSchoolSignup}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:bg-blue-700"
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={finalizeSchoolSignup}
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:text-blue-700"
+              >
+                Use Class 6
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      ) : null}
     </section>
   );
 }
