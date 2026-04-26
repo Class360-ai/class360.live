@@ -4,12 +4,15 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { LanguageProvider } from './context/LanguageContext';
+import { SequentialCourseProvider } from './context/SequentialCourseContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <LanguageProvider>
-        <App />
+        <SequentialCourseProvider>
+          <App />
+        </SequentialCourseProvider>
       </LanguageProvider>
     </BrowserRouter>
   </React.StrictMode>,

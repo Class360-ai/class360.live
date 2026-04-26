@@ -25,7 +25,6 @@ import {
 } from '../utils/learningStorage';
 import {
   getDailySeriesLocalSnapshot,
-  markDailySeriesLessonCompleted,
   saveStoredDailySeriesProgress,
 } from '../utils/dailySeriesStorage';
 
@@ -251,7 +250,7 @@ export async function loadDailyTradingSeriesProgress(userId = 'student-001') {
 }
 
 export async function saveDailyTradingSeriesProgress(daySlug, payload) {
-  const local = markDailySeriesLessonCompleted(daySlug, payload);
+  const local = saveStoredDailySeriesProgress(daySlug, payload);
   const remote = await request('/daily-series/progress/update', {
     method: 'POST',
     body: JSON.stringify({ daySlug, ...payload }),

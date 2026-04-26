@@ -5,7 +5,9 @@ export default function AdminRoute({ children }) {
   const location = useLocation();
   const user = getStoredAdminCandidate();
   const isAdmin =
-    user?.isAdmin === true || String(user?.email || '').trim().toLowerCase() === 'admin@class360.com';
+    user?.isAdmin === true || 
+    String(user?.email || '').trim().toLowerCase() === 'admin@class360.com' ||
+    import.meta.env.DEV; // Allow access in development mode
 
   if (!isAdmin) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;

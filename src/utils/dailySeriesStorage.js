@@ -3,6 +3,7 @@ import {
   dailyTradingSeriesSlug,
   normalizeDailyTradingSeriesLesson,
   getDailyTradingSeriesSnapshot,
+  isDailyTradingSeriesLessonComplete,
 } from '../data/dailyTradingSeries';
 
 const DAILY_SERIES_PROGRESS_KEY = 'class360_daily_series_progress';
@@ -52,11 +53,18 @@ export function getStoredDailySeriesProgress() {
 
 export function saveStoredDailySeriesProgress(daySlug, patch) {
   const current = getStoredDailySeriesProgress();
+  const previous = current[daySlug] || {};
+  const merged = {
+    ...previous,
+    ...patch,
+  };
+  const completed = isDailyTradingSeriesLessonComplete(merged);
   const next = {
     ...current,
     [daySlug]: {
-      ...(current[daySlug] || {}),
-      ...patch,
+      ...merged,
+      completed,
+      completedAt: completed ? previous.completedAt || patch.completedAt || new Date().toISOString() : null,
       updatedAt: new Date().toISOString(),
     },
   };
@@ -109,9 +117,10 @@ export function deleteStoredDailySeriesLesson(daySlug) {
 
 export function markDailySeriesLessonCompleted(daySlug, payload = {}) {
   return saveStoredDailySeriesProgress(daySlug, {
-    completed: true,
-    completedAt: payload.completedAt || new Date().toISOString(),
+    videoProgress: Number(payload.videoProgress || 100),
+    materialsOpened: true,
     notesRead: true,
+    quizAttempted: true,
     quizScore: Number(payload.quizScore || 0),
     homeworkDone: Boolean(payload.homeworkDone),
     lastOpenedAt: payload.lastOpenedAt || new Date().toISOString(),

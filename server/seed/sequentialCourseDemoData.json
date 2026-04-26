@@ -1,0 +1,41 @@
+{
+  "user": {
+    "name": "Demo Student",
+    "email": "student@class360.live"
+  },
+  "progress": [
+    {
+      "dayNumber": 1,
+      "videoProgress": 100,
+      "videoCompleted": true,
+      "notesCompleted": true,
+      "podcastCompleted": true,
+      "quizScore": 100,
+      "quizPassed": true,
+      "isCompleted": true,
+      "completionDate": "2026-04-24T09:30:00.000Z"
+    },
+    {
+      "dayNumber": 2,
+      "videoProgress": 92,
+      "videoCompleted": true,
+      "notesCompleted": true,
+      "podcastCompleted": true,
+      "quizScore": 75,
+      "quizPassed": true,
+      "isCompleted": true,
+      "completionDate": "2026-04-25T09:30:00.000Z"
+    },
+    {
+      "dayNumber": 3,
+      "videoProgress": 45,
+      "videoCompleted": false,
+      "notesCompleted": true,
+      "podcastCompleted": false,
+      "quizScore": 25,
+      "quizPassed": false,
+      "isCompleted": false,
+      "completionDate": null
+    }
+  ]
+}

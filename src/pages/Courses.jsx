@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, PlayCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, PlayCircle, ShieldCheck, Sparkles, LockKeyhole } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import CTASection from '../components/CTASection';
 import HeroBanner from '../components/HeroBanner';
@@ -134,6 +134,33 @@ export default function Courses() {
               />
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="section-container mt-16">
+        <div className="overflow-hidden rounded-[2.5rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-blue-50 p-6 shadow-sm sm:p-8">
+          <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                <LockKeyhole className="h-4 w-4" />
+                New feature
+              </div>
+              <h2 className="mt-4 font-display text-3xl font-bold text-slate-950 sm:text-4xl">
+                Sequential Course Unlock System
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                A premium day-by-day flow for 365 lessons, where each next lesson opens only after the previous day is fully completed.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 lg:justify-end">
+              <Link
+                to="/sequential-course"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+              >
+                Open Sequential Course <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

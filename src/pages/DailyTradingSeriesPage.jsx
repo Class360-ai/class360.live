@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -131,12 +131,98 @@ function QuizSection({ lesson, answers, onAnswer }) {
   );
 }
 
-function LessonVideoPlayer({ lesson }) {
+function LessonVideoPlayer({ lesson, onProgress }) {
   const [playerReady, setPlayerReady] = useState(false);
+  const [apiReady, setApiReady] = useState(Boolean(window.YT?.Player));
+  const [watchProgress, setWatchProgress] = useState(0);
+  const containerRef = useRef(null);
+  const playerRef = useRef(null);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     setPlayerReady(false);
+    setWatchProgress(0);
   }, [lesson?.daySlug]);
+
+  useEffect(() => {
+    if (watchProgress > 0) {
+      onProgress?.(watchProgress);
+    }
+  }, [onProgress, watchProgress]);
+
+  useEffect(() => {
+    if (window.YT?.Player) {
+      setApiReady(true);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const existingScript = document.querySelector('script[data-youtube-iframe-api="true"]');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.dataset.youtubeIframeApi = 'true';
+      document.body.appendChild(script);
+    }
+
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+      if (!cancelled) {
+        setApiReady(true);
+      }
+    };
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playerReady || !apiReady || !lesson?.videoID || !containerRef.current) return undefined;
+
+    const updateProgress = () => {
+      const player = playerRef.current;
+      if (!player?.getCurrentTime || !player?.getDuration) return;
+      const duration = Number(player.getDuration() || 0);
+      if (!duration) return;
+      const currentTime = Number(player.getCurrentTime() || 0);
+      const nextProgress = Math.min(100, Math.round((currentTime / duration) * 100));
+      setWatchProgress((previous) => (nextProgress > previous ? nextProgress : previous));
+    };
+
+    const handleStateChange = (event) => {
+      const playingState = window.YT?.PlayerState?.PLAYING;
+      if (event.data === playingState) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = window.setInterval(updateProgress, 1500);
+      } else {
+        window.clearInterval(intervalRef.current);
+        updateProgress();
+      }
+    };
+
+    playerRef.current?.destroy?.();
+    playerRef.current = new window.YT.Player(containerRef.current, {
+      videoId: lesson.videoID,
+      playerVars: {
+        rel: 0,
+        modestbranding: 1,
+      },
+      events: {
+        onReady: updateProgress,
+        onStateChange: handleStateChange,
+      },
+    });
+
+    return () => {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+  }, [apiReady, lesson?.videoID, playerReady]);
 
   const isYouTubeLesson = lesson?.videoType !== 'upload';
   const embedUrl = isYouTubeLesson ? (lesson?.embedURL || lesson?.videoUrl || '') : '';
@@ -190,14 +276,21 @@ function LessonVideoPlayer({ lesson }) {
   return (
     <div className="overflow-hidden rounded-[1.75rem] bg-slate-950 shadow-premium">
       <div className="aspect-video">
-        <iframe
-          className="h-full w-full"
-          src={embedUrl}
-          title={lesson?.title || 'Daily lesson video'}
-          loading="lazy"
-          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+        {apiReady ? (
+          <div ref={containerRef} className="h-full w-full" />
+        ) : (
+          <iframe
+            className="h-full w-full"
+            src={embedUrl}
+            title={lesson?.title || 'Daily lesson video'}
+            loading="lazy"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        )}
+      </div>
+      <div className="border-t border-white/10 px-4 py-3 text-sm text-white/80">
+        Video progress: {watchProgress}%
       </div>
     </div>
   );
@@ -246,7 +339,7 @@ export default function DailyTradingSeriesPage() {
   const [selectedDaySlug, setSelectedDaySlug] = useState(() => snapshot.resumeLesson?.daySlug || snapshot.nextLesson?.daySlug || 'day-1');
   const [selectedTab, setSelectedTab] = useState('video');
   const [quizAnswers, setQuizAnswers] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [lessonActivity, setLessonActivity] = useState({});
 
   const selectedLesson = useMemo(
     () => snapshot.lessons.find((lesson) => lesson.daySlug === selectedDaySlug) || snapshot.resumeLesson || snapshot.nextLesson || snapshot.lessons[0],
@@ -257,6 +350,23 @@ export default function DailyTradingSeriesPage() {
     () => getScore(quizAnswers, selectedLesson?.quiz || []),
     [quizAnswers, selectedLesson],
   );
+  const selectedProgress = useMemo(() => {
+    if (!selectedLesson) return { videoProgress: 0, materialsOpened: false, quizAttempted: false, quizScore: 0 };
+    return snapshot.lessons.find((lesson) => lesson.daySlug === selectedLesson.daySlug) || {
+      videoProgress: 0,
+      materialsOpened: false,
+      quizAttempted: false,
+      quizScore: 0,
+    };
+  }, [selectedLesson, snapshot.lessons]);
+  const selectedCompletionPercent = useMemo(() => {
+    const checks = [
+      Number(selectedProgress.videoProgress || 0) >= 90,
+      Boolean(selectedProgress.materialsOpened),
+      Boolean(selectedProgress.quizAttempted),
+    ];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  }, [selectedProgress]);
 
   const blocks = useMemo(() => {
     const list = snapshot.lessons || [];
@@ -295,35 +405,79 @@ export default function DailyTradingSeriesPage() {
     setSelectedDaySlug((current) => current || selectedLesson.daySlug);
   }, [selectedLesson]);
 
+  useEffect(() => {
+    if (!selectedLesson) return;
+    setQuizAnswers({});
+    setLessonActivity((current) => ({
+      ...current,
+      [selectedLesson.daySlug]: current[selectedLesson.daySlug] || { quizSubmitted: false },
+    }));
+  }, [selectedLesson?.daySlug]);
+
+  const refreshSnapshot = async () => {
+    const refreshed = await loadDailyTradingSeriesProgress();
+    if (refreshed) {
+      setSnapshot(refreshed);
+      return refreshed;
+    }
+    return null;
+  };
+
+  const persistLessonProgress = async (daySlug, patch) => {
+    await saveDailyTradingSeriesProgress(daySlug, {
+      ...patch,
+      lastOpenedAt: new Date().toISOString(),
+    });
+    return refreshSnapshot();
+  };
+
   const handleSelectLesson = async (lesson) => {
     if (lesson.locked) return;
     setSelectedDaySlug(lesson.daySlug);
     setSelectedTab('video');
-    setQuizAnswers({});
     await touchDailyTradingSeriesLesson(lesson.daySlug);
   };
 
-  const handleComplete = async () => {
+  const handleVideoProgress = async (progress) => {
     if (!selectedLesson || selectedLesson.locked) return;
-    setSaving(true);
-    try {
-      await saveDailyTradingSeriesProgress(selectedLesson.daySlug, {
-        completed: true,
-        completedAt: new Date().toISOString(),
-        notesRead: true,
-        quizScore: selectedScore,
-        homeworkDone: true,
-        lastOpenedAt: new Date().toISOString(),
-      });
-      const refreshed = await loadDailyTradingSeriesProgress();
-      if (refreshed) setSnapshot(refreshed);
-    } finally {
-      setSaving(false);
-    }
+    const normalizedProgress = Math.max(Number(selectedProgress.videoProgress || 0), Number(progress || 0));
+    if (normalizedProgress <= Number(selectedProgress.videoProgress || 0)) return;
+    await persistLessonProgress(selectedLesson.daySlug, {
+      videoProgress: normalizedProgress,
+    });
+  };
+
+  const handleOpenMaterials = async () => {
+    if (!selectedLesson || selectedLesson.locked || selectedProgress.materialsOpened) return;
+    await persistLessonProgress(selectedLesson.daySlug, {
+      materialsOpened: true,
+      notesRead: true,
+    });
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!selectedLesson || selectedLesson.locked) return;
+    setLessonActivity((current) => ({
+      ...current,
+      [selectedLesson.daySlug]: {
+        ...(current[selectedLesson.daySlug] || {}),
+        quizSubmitted: true,
+      },
+    }));
+    await persistLessonProgress(selectedLesson.daySlug, {
+      quizAttempted: true,
+      quizScore: selectedScore,
+    });
   };
 
   const resumeLesson = snapshot.resumeLesson || snapshot.nextLesson || selectedLesson;
-  const quizComplete = selectedLesson?.quiz?.length ? selectedScore : 0;
+  const isQuizSubmitted = Boolean(lessonActivity[selectedLesson?.daySlug || '']?.quizSubmitted);
+
+  useEffect(() => {
+    if (selectedTab === 'slides' || selectedTab === 'notes') {
+      handleOpenMaterials();
+    }
+  }, [selectedTab]);
 
   return (
     <section className="section-container py-8 sm:py-10">
@@ -339,7 +493,7 @@ export default function DailyTradingSeriesPage() {
                 Trading from Zero to Pro (365 Days Series)
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 sm:text-base">
-                A day-wise learning path with video, notes, key points, a simple quiz and homework for every lesson.
+                A day-wise learning path where each next day unlocks after the student watches the lesson, opens the PPT and submits the test.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
@@ -458,9 +612,12 @@ export default function DailyTradingSeriesPage() {
                     <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300"
-                        style={{ width: `${snapshot.progressPercent}%` }}
+                        style={{ width: `${selectedCompletionPercent}%` }}
                       />
                     </div>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Day unlock progress: {selectedCompletionPercent}% complete
+                    </p>
                   </div>
 
                   <div className="grid gap-3 rounded-[1.5rem] bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -469,8 +626,8 @@ export default function DailyTradingSeriesPage() {
                       <p className="mt-2 font-display text-3xl font-bold text-slate-950">{selectedLesson.dayNumber}</p>
                     </div>
                     <div className="rounded-2xl bg-white p-4 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Quiz score</p>
-                      <p className="mt-2 font-display text-3xl font-bold text-slate-950">{selectedScore}%</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Unlock rule</p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-slate-950">Video 90% + PPT opened + test submitted</p>
                     </div>
                   </div>
                 </div>
@@ -480,6 +637,7 @@ export default function DailyTradingSeriesPage() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Lesson tabs</p>
                       <h3 className="mt-1 font-display text-xl font-bold text-slate-950">Video, slides, notes, quiz and homework</h3>
+                      <p className="mt-2 text-sm text-slate-500">Open slides or notes to count the PPT step. Submit the quiz to unlock the next day.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {[
@@ -498,7 +656,16 @@ export default function DailyTradingSeriesPage() {
 
                   <div className="p-4 sm:p-5">
                     {selectedTab === 'video' ? (
-                      <LessonVideoPlayer lesson={selectedLesson} />
+                      <div className="space-y-4">
+                        <LessonVideoPlayer lesson={selectedLesson} onProgress={handleVideoProgress} />
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-slate-950">Watch progress</p>
+                            <p className="text-sm font-semibold text-blue-700">{selectedProgress.videoProgress || 0}%</p>
+                          </div>
+                          <p className="mt-2 text-sm text-slate-600">The next day unlocks after this reaches at least 90%.</p>
+                        </div>
+                      </div>
                     ) : null}
                     {selectedTab === 'slides' ? <SlidesTab lesson={selectedLesson} /> : null}
                     {selectedTab === 'notes' ? (
@@ -521,13 +688,33 @@ export default function DailyTradingSeriesPage() {
                       <div className="space-y-4">
                         <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
                           <p className="text-sm font-semibold text-slate-950">Quiz score: {selectedScore}%</p>
-                          <p className="mt-2 text-sm text-slate-600">Score updates as you answer each question.</p>
+                          <p className="mt-2 text-sm text-slate-600">Answer the questions, then submit the test to count this step.</p>
                         </div>
                         <QuizSection
                           lesson={selectedLesson}
                           answers={quizAnswers}
                           onAnswer={(questionId, value) => setQuizAnswers((prev) => ({ ...prev, [questionId]: value }))}
                         />
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">Test submission</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Submitting the test marks the quiz step complete for this day.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSubmitQuiz}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                          >
+                            Submit test <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {isQuizSubmitted ? (
+                          <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                            Test submitted. If the video and PPT steps are done, the next day is now unlocked automatically.
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {selectedTab === 'homework' ? (
@@ -539,7 +726,7 @@ export default function DailyTradingSeriesPage() {
                         <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50 p-4 text-blue-700">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em]">Finish step</p>
                           <p className="mt-2 text-sm leading-6">
-                            Complete the lesson, then tap the completion button below to unlock the next day.
+                            This page now unlocks the next day automatically after video, PPT and test activity.
                           </p>
                         </div>
                       </div>
@@ -547,24 +734,8 @@ export default function DailyTradingSeriesPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleComplete}
-                    disabled={selectedLesson.locked || saving}
-                    className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <CircleCheckBig className="h-4 w-4" />
-                    {saving ? 'Saving...' : 'Mark as completed'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectLesson(selectedLesson)}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Resume lesson
-                  </button>
+                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  Unlock rule for this page: watch at least 90% of the video, open slides or notes, and submit the test.
                 </div>
               </div>
             ) : null}

@@ -23,6 +23,8 @@ const LearningTestPage = lazy(() => import('./pages/LearningTestPage'));
 const LearningDashboardPage = lazy(() => import('./pages/LearningDashboardPage'));
 const BusinessMarketLearningPage = lazy(() => import('./pages/BusinessMarketLearningPage'));
 const DailyTradingSeriesPage = lazy(() => import('./pages/DailyTradingSeriesPage'));
+const SequentialCourseDashboardPage = lazy(() => import('./pages/SequentialCourseDashboardPage'));
+const SequentialCourseLessonPage = lazy(() => import('./pages/SequentialCourseLessonPage'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminSubjectsPage = lazy(() => import('./pages/admin/AdminSubjectsPage'));
 const AdminAddSubjectPage = lazy(() => import('./pages/admin/AdminAddSubjectPage'));
@@ -102,6 +104,9 @@ export default function App() {
               <Route path="/learning/dashboard" element={<LearningDashboardPage />} />
               <Route path="/business-market-learning" element={<BusinessMarketLearningPage />} />
               <Route path="/business-market-learning/trading-from-zero-to-pro" element={<DailyTradingSeriesPage />} />
+              <Route path="/sequential-course" element={<SequentialCourseDashboardPage />} />
+              <Route path="/sequential-course/day/:dayNumber" element={<SequentialCourseLessonPage />} />
+              <Route path="/admin-test" element={<AdminDashboard />} />
               <Route
                 path="/admin"
                 element={

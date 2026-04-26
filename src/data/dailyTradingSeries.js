@@ -258,6 +258,12 @@ function buildLesson(dayNumber) {
   const titleSuffix = isCheckpoint ? 'Checkpoint' : theme.label;
   const releaseDate = addDays(DEFAULT_SERIES_START_DATE, dayNumber - 1);
 
+  const isDayOne = dayNumber === 1;
+  const youtubeURL = isDayOne ? 'https://www.youtube.com/watch?v=EZUyYwde_DI' : DEFAULT_YOUTUBE_URL;
+  const videoID = isDayOne ? 'EZUyYwde_DI' : DEFAULT_YOUTUBE_VIDEO_ID;
+  const embedURL = buildYouTubeEmbedUrl(videoID);
+  const thumbnail = buildYouTubeThumbnailUrl(videoID);
+
   return {
     id: `day-${dayNumber}`,
     dayNumber,
@@ -268,11 +274,11 @@ function buildLesson(dayNumber) {
     specialModule,
     description: `A daily step inside ${dailyTradingSeriesTitle} with safe, beginner-friendly learning.`,
     videoType: 'youtube',
-    youtubeURL: DEFAULT_YOUTUBE_URL,
-    videoID: DEFAULT_YOUTUBE_VIDEO_ID,
-    embedURL: buildYouTubeEmbedUrl(DEFAULT_YOUTUBE_VIDEO_ID),
-    thumbnail: buildYouTubeThumbnailUrl(DEFAULT_YOUTUBE_VIDEO_ID),
-    videoUrl: buildYouTubeEmbedUrl(DEFAULT_YOUTUBE_VIDEO_ID),
+    youtubeURL,
+    videoID,
+    embedURL,
+    thumbnail,
+    videoUrl: embedURL,
     notes: `Day ${dayNumber} focuses on ${theme.focus} Keep the explanation simple, practical and reality-first.`,
     keyPoints: [
       `Focus: ${theme.focus}`,
@@ -343,9 +349,17 @@ export function getDailyTradingSeriesProgressMap(rows = []) {
   return map;
 }
 
+export function isDailyTradingSeriesLessonComplete(progress = {}) {
+  return (
+    Number(progress.videoProgress || 0) >= 90 &&
+    Boolean(progress.materialsOpened) &&
+    Boolean(progress.quizAttempted)
+  );
+}
+
 export function getDailyTradingSeriesStreak(progressMap = {}, todayKey = getDateKey()) {
   const completedDates = Object.values(progressMap)
-    .filter((row) => row?.completed && row.completedAt)
+    .filter((row) => isDailyTradingSeriesLessonComplete(row) && row.completedAt)
     .map((row) => getDateKey(new Date(row.completedAt)))
     .sort();
   if (!completedDates.length) return 0;
@@ -371,7 +385,7 @@ export function getDailyTradingSeriesResumeLesson(progressMap = {}, todayKey = g
       const progress = progressMap[lesson.daySlug] || {};
       return {
         ...lesson,
-        completed: Boolean(progress.completed),
+        completed: isDailyTradingSeriesLessonComplete(progress),
         completedAt: progress.completedAt || null,
         lastOpenedAt: progress.lastOpenedAt || null,
       };
@@ -397,13 +411,17 @@ export function getDailyTradingSeriesSnapshot(progressMap = {}, lessonsInput = d
     const dayIndex = lesson.dayNumber - 1;
     const isReleased = dateDiffInDays(dailyTradingSeriesStartDate, todayKey) >= dayIndex;
     const previous = lesson.dayNumber > 1 ? progressMap[`day-${lesson.dayNumber - 1}`] : null;
-    const unlocked = lesson.dayNumber === 1 || Boolean(previous?.completed);
-    const status = progress.completed ? 'completed' : isReleased && unlocked ? 'available' : 'locked';
+    const completed = isDailyTradingSeriesLessonComplete(progress);
+    const unlocked = lesson.dayNumber === 1 || isDailyTradingSeriesLessonComplete(previous);
+    const status = completed ? 'completed' : isReleased && unlocked ? 'available' : 'locked';
     return {
       ...lesson,
-      completed: Boolean(progress.completed),
+      completed,
       completedAt: progress.completedAt || null,
       notesRead: Boolean(progress.notesRead),
+      videoProgress: Number(progress.videoProgress || 0),
+      materialsOpened: Boolean(progress.materialsOpened),
+      quizAttempted: Boolean(progress.quizAttempted),
       quizScore: Number(progress.quizScore || 0),
       status,
       locked: status === 'locked',
