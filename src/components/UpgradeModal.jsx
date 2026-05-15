@@ -75,8 +75,8 @@ export default function UpgradeModal({ open, onClose, reason = 'Unlock advanced 
               <div className="mt-6 rounded-[1.6rem] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Pricing</p>
                 <div className="mt-2 flex items-end gap-3">
-                  <p className="font-display text-4xl font-bold text-slate-950">₹99/month</p>
-                  <p className="pb-1 text-sm text-slate-500 line-through">₹199/month</p>
+                  <p className="font-display text-4xl font-bold text-slate-950">Rs. 99/month</p>
+                  <p className="pb-1 text-sm text-slate-500 line-through">Rs. 199/month</p>
                 </div>
                 <p className="mt-2 text-sm leading-7 text-slate-600">
                   Keep all premium learning tools active with a simple monthly plan.
@@ -85,7 +85,7 @@ export default function UpgradeModal({ open, onClose, reason = 'Unlock advanced 
 
               {success ? (
                 <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
-                  Welcome to Premium 🎉
+                  Welcome to Premium.
                 </div>
               ) : null}
 

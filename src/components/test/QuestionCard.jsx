@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { getQuestionExplanation } from '../../utils/testFlow';
 
-export default function QuestionCard({ question, selectedAnswer, onSelect }) {
+export default function QuestionCard({ question, selectedAnswer, onSelect, language = 'en' }) {
   if (!question) {
     return (
       <div className="glass-card rounded-[2rem] p-6">
@@ -23,6 +23,11 @@ export default function QuestionCard({ question, selectedAnswer, onSelect }) {
           <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">
             {question.question}
           </h2>
+          {question.aiTranslationPending ? (
+            <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              Production will call the AI translation API for {language}; this preview preserves the live exam state.
+            </p>
+          ) : null}
         </div>
         <span className="rounded-full bg-slate-950 px-3 py-1 text-sm font-semibold text-white">
           {question.subject}

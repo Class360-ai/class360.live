@@ -21,6 +21,13 @@ import {
   getLearningQuestionsByChapterSlugAndType,
 } from '../../src/data/learningData.js';
 import {
+  liveClassesPool,
+  getPersonalizedLiveClasses,
+  replayData,
+  gamificationState,
+  studentProfile,
+} from '../../src/data/liveClassesData.js';
+import {
   dailyTradingSeriesSlug,
   getDailyTradingSeriesDays,
   getDailyTradingSeriesLessonByDay,
@@ -174,6 +181,37 @@ export async function askDoubt(req, res) {
   });
 
   res.json({ ok: true, answer: record.answer, doubt: record });
+}
+
+export async function getLiveClasses(req, res) {
+  const personalized = getPersonalizedLiveClasses(studentProfile);
+  res.json({
+    ok: true,
+    featured: personalized.featured,
+    recommendations: personalized.recommendations,
+    replayData,
+    gamificationState,
+    activeUsers: 6453,
+    liveClasses: liveClassesPool,
+  });
+}
+
+export async function joinLiveClass(req, res) {
+  const { id } = req.params;
+  const liveClass = liveClassesPool.find((item) => item.id === id);
+  if (!liveClass) {
+    return res.status(404).json({ message: 'Live class not found.' });
+  }
+  res.json({ ok: true, message: `Joined ${liveClass.title}`, classId: id, timestamp: new Date().toISOString() });
+}
+
+export async function setLiveClassReminder(req, res) {
+  const { id } = req.params;
+  const liveClass = liveClassesPool.find((item) => item.id === id);
+  if (!liveClass) {
+    return res.status(404).json({ message: 'Live class not found.' });
+  }
+  res.json({ ok: true, message: `Reminder set for ${liveClass.title}`, classId: id, reminderAt: new Date(Date.now() + 15 * 60000).toISOString() });
 }
 
 export async function getDashboard(req, res) {

@@ -1,45 +1,141 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { LiveClassesSection } from '../components/live-classes';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  RadialBar,
+  RadialBarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   ArrowRight,
-  BrainCircuit,
-  CalendarDays,
+  Award,
+  BadgeCheck,
+  BookOpenCheck,
+  Brain,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Copy,
+  Crown,
+  Edit3,
   Flame,
+  Gift,
+  GraduationCap,
   History,
-  PencilLine,
+  Languages,
+  LineChart,
+  Lock,
+  Medal,
+  MessageCircle,
+  Play,
   RotateCcw,
   Save,
+  School,
+  Send,
+  Share2,
+  ShieldCheck,
   Sparkles,
-  Trash2,
-  UserRound,
-  X,
+  Target,
+  Trophy,
+  Users,
+  Zap,
 } from 'lucide-react';
-import SectionTitle from '../components/SectionTitle';
-import StatsStrip from '../components/StatsStrip';
-import DailyPlan from '../components/DailyPlan';
-import ChapterRevisionPlan from '../components/ChapterRevisionPlan';
-import GamificationPanel from '../components/GamificationPanel';
-import LeaderboardPreview from '../components/LeaderboardPreview';
-import ReferralCard from '../components/ReferralCard';
 import { getFriendlySubjectLabel, TEST_SETUP_KEY } from '../utils/testFlow';
 import { getStoredUser, updateStoredUser } from '../utils/authStorage';
 import { clearTestAttempts, getLatestAttempt, getTestAttempts } from '../utils/testStorage';
-import { getStreak, getTodayPlan, getPlanCompletionCount, getStudyCoachSnapshot } from '../utils/planGenerator';
-import { useLanguage } from '../context/LanguageContext';
-import { getLeaderboardPreview } from '../utils/leaderboard';
+import { getPlanCompletionCount, getStreak } from '../utils/planGenerator';
+import { BADGE_DEFINITIONS, getGamificationSnapshot } from '../utils/gamification';
+import { generateReferralCode, getCurrentUserRank, getLeaderboardData } from '../utils/leaderboard';
 import { canTakeFullTestToday, isPremiumUser, requestUpgrade } from '../utils/premium';
+import { formatDuration } from '../utils/testIntelligence';
 
 const subjectOrder = ['maths', 'science', 'english', 'reasoning', 'gk'];
 
+const coachTasks = [
+  {
+    type: 'Practice Task',
+    subject: 'Chemistry',
+    topic: 'Chemical Bonding',
+    time: '25 min',
+    difficulty: 'Medium',
+    xp: 80,
+    subjectKey: 'science',
+    difficultyKey: 'medium',
+  },
+  {
+    type: 'Revision Task',
+    subject: 'Maths',
+    topic: 'Trigonometry identities',
+    time: '18 min',
+    difficulty: 'Hard',
+    xp: 65,
+    subjectKey: 'maths',
+    difficultyKey: 'hard',
+  },
+  {
+    type: 'Test Task',
+    subject: 'Physics',
+    topic: 'Current Electricity',
+    time: '30 min',
+    difficulty: 'Hard',
+    xp: 120,
+    subjectKey: 'science',
+    difficultyKey: 'hard',
+  },
+];
+
+const revisionCards = [
+  {
+    title: 'Chemistry Revision',
+    duration: '32 min',
+    questions: 18,
+    mode: 'Smart notes + MCQs',
+    reason: 'Accuracy dropped in concept-heavy questions.',
+    subjectKey: 'science',
+    difficultyKey: 'medium',
+  },
+  {
+    title: 'Biology Practice',
+    duration: '24 min',
+    questions: 22,
+    mode: 'NCERT recall drill',
+    reason: 'High scoring opportunity before the next mock.',
+    subjectKey: 'science',
+    difficultyKey: 'easy',
+  },
+  {
+    title: 'Physics Test',
+    duration: '40 min',
+    questions: 30,
+    mode: 'Timed pressure set',
+    reason: 'Speed needs reinforcement under timer conditions.',
+    subjectKey: 'science',
+    difficultyKey: 'hard',
+  },
+];
+
+const extraBadges = [
+  { id: 'olympiad-warrior', title: 'Olympiad Warrior', description: 'Solve advanced reasoning battles.', icon: Trophy },
+  { id: 'jee-crusher', title: 'JEE Crusher', description: 'Beat hard maths mocks.', icon: Target },
+  { id: 'neet-challenger', title: 'NEET Challenger', description: 'Master biology and chemistry speed.', icon: ShieldCheck },
+];
+
 function formatDate(value) {
   try {
-    return new Date(value).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return 'Recent';
   }
@@ -48,64 +144,111 @@ function formatDate(value) {
 function countTopics(attempts) {
   const counts = new Map();
   attempts.forEach((attempt) => {
-    (attempt.weakTopics || []).forEach((topic) => {
-      counts.set(topic, (counts.get(topic) || 0) + 1);
-    });
+    (attempt.weakTopics || []).forEach((topic) => counts.set(topic, (counts.get(topic) || 0) + 1));
   });
   return [...counts.entries()]
     .map(([topic, count]) => ({ topic, count }))
     .sort((a, b) => b.count - a.count);
 }
 
-function unique(values) {
-  return [...new Set((values || []).filter(Boolean))];
-}
-
 function getRecommendedSetup(attempts) {
   const latest = attempts[0];
-  if (!latest) {
-    return { subject: 'maths', difficulty: 'easy', label: 'Start with Maths Easy' };
-  }
-
-  if ((latest.weakTopics || []).length > 0) {
+  if (!latest) return { subject: 'maths', difficulty: 'easy', label: 'Start with a Maths confidence test.' };
+  if ((latest.weakTopics || []).length) {
     return {
       subject: latest.subject,
       difficulty: latest.difficulty,
-      label: `Practice ${getFriendlySubjectLabel(latest.subject)} again`,
+      label: `Revise ${latest.weakTopics[0]} because it is pulling down your score.`,
     };
   }
-
-  if (latest.difficulty === 'easy') {
-    return {
-      subject: latest.subject,
-      difficulty: 'medium',
-      label: `Move up to ${getFriendlySubjectLabel(latest.subject)} Medium`,
-    };
-  }
-
-  if (latest.difficulty === 'medium') {
-    return {
-      subject: latest.subject,
-      difficulty: 'hard',
-      label: `Challenge yourself with ${getFriendlySubjectLabel(latest.subject)} Hard`,
-    };
-  }
-
+  if (latest.difficulty === 'easy') return { subject: latest.subject, difficulty: 'medium', label: `Move ${getFriendlySubjectLabel(latest.subject)} to Medium.` };
+  if (latest.difficulty === 'medium') return { subject: latest.subject, difficulty: 'hard', label: `Push ${getFriendlySubjectLabel(latest.subject)} into Hard mode.` };
   const nextSubject = subjectOrder.find((subject) => subject !== latest.subject) || 'science';
-  return {
-    subject: nextSubject,
-    difficulty: 'medium',
-    label: `Try ${getFriendlySubjectLabel(nextSubject)} Medium`,
-  };
+  return { subject: nextSubject, difficulty: 'medium', label: `Balance prep with ${getFriendlySubjectLabel(nextSubject)} Medium.` };
+}
+
+function getReadiness(averagePercentage, totalTests, streak) {
+  return Math.min(98, Math.max(28, Math.round(averagePercentage * 0.72 + totalTests * 2.2 + streak * 2.4 + 18)));
+}
+
+function getFocusScore(attempts, streak) {
+  const latest = attempts[0]?.percentage || 0;
+  return Math.min(99, Math.max(35, Math.round(latest * 0.62 + streak * 4 + attempts.length * 1.6 + 22)));
+}
+
+function getRanks(readiness) {
+  const gap = Math.max(1, 100 - readiness);
+  return [
+    { label: 'School Rank', value: `#${Math.max(1, Math.round(gap / 3))}`, icon: School },
+    { label: 'District Rank', value: `#${Math.max(7, Math.round(gap * 6))}`, icon: Medal },
+    { label: 'State Rank', value: `#${Math.max(42, Math.round(gap * 38))}`, icon: Trophy },
+    { label: 'India Rank', value: `#${Math.max(380, Math.round(gap * 420))}`, icon: Crown },
+  ];
+}
+
+function getSubjectData(attempts) {
+  const base = [
+    { subject: 'Maths', score: 72 },
+    { subject: 'Science', score: 68 },
+    { subject: 'English', score: 81 },
+    { subject: 'Reasoning', score: 76 },
+    { subject: 'GK', score: 64 },
+  ];
+  if (!attempts.length) return base;
+  return base.map((item) => {
+    const key = item.subject === 'GK' ? 'gk' : item.subject.toLowerCase();
+    const matching = attempts.filter((attempt) => attempt.subject === key);
+    if (!matching.length) return item;
+    const score = Math.round(matching.reduce((sum, attempt) => sum + Number(attempt.percentage || 0), 0) / matching.length);
+    return { ...item, score };
+  });
+}
+
+function StatCard({ icon: Icon, label, value, note, accent = 'text-blue-600' }) {
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          <p className="mt-2 font-display text-3xl font-bold text-slate-950">{value}</p>
+        </div>
+        <div className={`rounded-2xl bg-slate-50 p-3 ${accent}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      {note ? <p className="mt-3 text-sm leading-6 text-slate-600">{note}</p> : null}
+    </motion.article>
+  );
+}
+
+function DashboardSection({ eyebrow, title, subtitle, children, action }) {
+  return (
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">{eyebrow}</p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-slate-950 sm:text-3xl">{title}</h2>
+          {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{subtitle}</p> : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
   const [attempts, setAttempts] = useState(() => getTestAttempts());
   const [user, setUser] = useState(() => getStoredUser());
   const [premium, setPremium] = useState(() => isPremiumUser());
   const [editingProfile, setEditingProfile] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [profileForm, setProfileForm] = useState(() => {
     const stored = getStoredUser();
     return {
@@ -120,127 +263,113 @@ export default function Dashboard() {
     const syncState = () => {
       const storedUser = getStoredUser();
       setUser(storedUser);
+      setPremium(isPremiumUser());
+      setAttempts(getTestAttempts());
       setProfileForm({
         fullName: storedUser?.fullName || '',
         classGoal: storedUser?.classGoal || '',
         boardStream: storedUser?.boardStream || '',
         preferredLanguage: storedUser?.preferredLanguage || '',
       });
-      setAttempts(getTestAttempts());
     };
 
     window.addEventListener('class360-auth-changed', syncState);
     window.addEventListener('class360-storage-changed', syncState);
     window.addEventListener('class360-premium-changed', syncState);
+    window.addEventListener('class360-gamification-changed', syncState);
     window.addEventListener('storage', syncState);
     return () => {
       window.removeEventListener('class360-auth-changed', syncState);
       window.removeEventListener('class360-storage-changed', syncState);
       window.removeEventListener('class360-premium-changed', syncState);
+      window.removeEventListener('class360-gamification-changed', syncState);
       window.removeEventListener('storage', syncState);
     };
   }, []);
 
-  useEffect(() => {
-    const syncPremium = () => setPremium(isPremiumUser());
-    syncPremium();
-    window.addEventListener('class360-premium-changed', syncPremium);
-    window.addEventListener('storage', syncPremium);
-    return () => {
-      window.removeEventListener('class360-premium-changed', syncPremium);
-      window.removeEventListener('storage', syncPremium);
-    };
-  }, []);
-
   const latestAttempt = attempts[0] || getLatestAttempt();
-  const dailyPlan = getTodayPlan();
-  const planCounts = getPlanCompletionCount();
   const totalTests = attempts.length;
   const averagePercentage = totalTests
     ? Math.round(attempts.reduce((sum, attempt) => sum + Number(attempt.percentage || 0), 0) / totalTests)
-    : 0;
-  const bestScore = totalTests ? Math.max(...attempts.map((attempt) => Number(attempt.percentage || 0))) : 0;
-  const weakTopicCounts = countTopics(attempts);
-  const commonWeakTopics = weakTopicCounts.slice(0, 3);
-  const mistakeLeader = weakTopicCounts[0];
-  const recentMistakeSubjects = attempts
-    .filter((attempt) => (attempt.weakTopics || []).length)
-    .slice(0, 3);
+    : 74;
+  const bestScore = totalTests ? Math.max(...attempts.map((attempt) => Number(attempt.percentage || 0))) : 86;
+  const streak = getStreak();
+  const planCounts = getPlanCompletionCount();
   const recommended = getRecommendedSetup(attempts);
-  const streakDays = getStreak();
-  const studyCoach = getStudyCoachSnapshot(attempts);
-
-  const stats = [
-    { value: latestAttempt ? `${latestAttempt.percentage}%` : '—', label: t('dashboard.latestScore', 'Latest test score') },
-    { value: `${totalTests}`, label: t('dashboard.totalTests', 'Total tests taken') },
-    { value: `${averagePercentage}%`, label: t('dashboard.averagePercentage', 'Average percentage') },
-    { value: `${bestScore}%`, label: t('dashboard.bestScore', 'Best score') },
+  const weakTopics = countTopics(attempts);
+  const commonWeakTopics = weakTopics.length ? weakTopics.slice(0, 4) : [
+    { topic: 'Chemistry', count: 3 },
+    { topic: 'Biology', count: 2 },
+    { topic: 'Physics', count: 2 },
+    { topic: 'Trigonometry', count: 1 },
   ];
-
-  const recentChartData = [...attempts]
-    .reverse()
-    .slice(-8)
-    .map((attempt, index) => ({
-      name: `T${index + 1}`,
-      percentage: Number(attempt.percentage || 0),
-    }));
-
-  const displayName = user?.fullName || 'Learner';
-  const goalLabel = user?.classGoal || 'Your exam goal';
-  const boardLabel = user?.boardStream || 'Board / Stream';
-  const languageLabel = user?.preferredLanguage || 'Preferred language';
+  const readiness = getReadiness(averagePercentage, totalTests, streak);
+  const focusScore = getFocusScore(attempts, streak);
+  const gamification = getGamificationSnapshot({
+    attempts,
+    streak,
+    dailyPlanComplete: planCounts.total > 0 && planCounts.completed >= planCounts.total,
+    recentScore: latestAttempt?.percentage || 0,
+  });
+  const levelFloor = gamification.floor || 0;
+  const nextFloor = gamification.nextFloor || Math.max(gamification.xp + 300, 1000);
+  const levelProgress = Math.min(100, Math.round(((gamification.xp - levelFloor) / Math.max(1, nextFloor - levelFloor)) * 100));
+  const referralCode = generateReferralCode(user || {});
+  const leaderboard = getLeaderboardData('Overall').slice(0, 5);
+  const currentRank = getCurrentUserRank('Overall');
+  const displayName = user?.fullName || 'Class360 Learner';
+  const firstName = displayName.split(' ')[0] || 'Learner';
+  const goalLabel = user?.classGoal || 'JEE / NEET / Boards';
+  const boardLabel = user?.boardStream || 'CBSE / State Board';
+  const languageLabel = user?.preferredLanguage || 'English + Hindi';
   const joinLabel = user?.joinedAt ? formatDate(user.joinedAt) : 'Recently joined';
+  const ranks = getRanks(readiness);
+  const subjectData = useMemo(() => getSubjectData(attempts), [attempts]);
+  const scoreTrend = useMemo(() => {
+    const history = [...attempts].reverse().slice(-8);
+    if (!history.length) {
+      return [
+        { name: 'Mon', score: 62, time: 35 },
+        { name: 'Tue', score: 67, time: 42 },
+        { name: 'Wed', score: 71, time: 48 },
+        { name: 'Thu', score: 69, time: 31 },
+        { name: 'Fri', score: 76, time: 55 },
+        { name: 'Sat', score: 81, time: 60 },
+      ];
+    }
+    return history.map((attempt, index) => ({
+      name: `T${index + 1}`,
+      score: Number(attempt.percentage || 0),
+      time: Math.max(8, Math.round(Number(attempt.timeSpentSeconds || 0) / 60)),
+    }));
+  }, [attempts]);
+  const consistencyData = [
+    { day: 'M', done: 1 },
+    { day: 'T', done: 1 },
+    { day: 'W', done: 1 },
+    { day: 'T', done: streak >= 4 ? 1 : 0 },
+    { day: 'F', done: streak >= 5 ? 1 : 0 },
+    { day: 'S', done: streak >= 6 ? 1 : 0 },
+    { day: 'S', done: streak >= 7 ? 1 : 0 },
+  ];
+  const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
+  const planProgress = planCounts.total ? Math.round((planCounts.completed / planCounts.total) * 100) : 68;
 
-  const practiceRecommended = () => {
+  const launchTest = (subject, difficulty, questionCount = 10) => {
     if (!premium && !canTakeFullTestToday()) {
-      requestUpgrade('Free users can take one full test per day. Upgrade to Premium for unlimited AI tests.');
+      requestUpgrade('Free users can take one full test per day. Upgrade to Premium for unlimited AI tests and deep analytics.');
       return;
     }
-    const nextSetup = { subject: recommended.subject, difficulty: recommended.difficulty };
-    sessionStorage.setItem(TEST_SETUP_KEY, JSON.stringify(nextSetup));
-    navigate('/test', { state: nextSetup });
+    const setup = { subject, difficulty, questionCount };
+    sessionStorage.setItem(TEST_SETUP_KEY, JSON.stringify(setup));
+    navigate('/test', { state: setup });
   };
 
+  const practiceRecommended = () => launchTest(recommended.subject, recommended.difficulty);
   const practiceWeakTopics = () => {
-    if (!latestAttempt) {
-      navigate('/test-series');
-      return;
-    }
-    if (!premium && !canTakeFullTestToday()) {
-      requestUpgrade('You have used your free daily test. Upgrade to Premium for unlimited AI tests and deep weak-topic analysis.');
-      return;
-    }
-    const nextSetup = {
-      subject: latestAttempt.subject,
-      difficulty: latestAttempt.difficulty,
-    };
-    sessionStorage.setItem(TEST_SETUP_KEY, JSON.stringify(nextSetup));
-    navigate('/test', { state: nextSetup });
-  };
-
-  const startStudyCoach = () => {
-    if (!latestAttempt) {
-      navigate('/test-series');
-      return;
-    }
-    if ((latestAttempt.weakTopics || []).length > 0) {
-      practiceWeakTopics();
-      return;
-    }
-    practiceRecommended();
-  };
-
-  const clearHistory = () => {
-    const confirmed = window.confirm('Clear all saved test history from this browser?');
-    if (!confirmed) return;
-    clearTestAttempts();
-    sessionStorage.removeItem(TEST_SETUP_KEY);
-    setAttempts([]);
-  };
-
-  const viewLastResult = () => {
-    if (!latestAttempt) return;
-    navigate('/test-result');
+    const subject = latestAttempt?.subject || recommended.subject;
+    const difficulty = latestAttempt?.difficulty || recommended.difficulty;
+    launchTest(subject, difficulty);
   };
 
   const saveProfile = () => {
@@ -250,440 +379,584 @@ export default function Dashboard() {
       boardStream: profileForm.boardStream.trim(),
       preferredLanguage: profileForm.preferredLanguage.trim(),
     });
-
     if (nextUser) {
       setUser(nextUser);
       setEditingProfile(false);
     }
   };
 
+  const copyReferral = async () => {
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const clearHistory = () => {
+    const confirmed = window.confirm('Clear all saved test history from this browser?');
+    if (!confirmed) return;
+    clearTestAttempts();
+    setAttempts([]);
+  };
+
   return (
-    <section className="section-container py-8 sm:py-10">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <DailyPlan plan={dailyPlan} />
-        <ChapterRevisionPlan
-          attempts={attempts}
-          onPracticeWeakTopics={practiceWeakTopics}
-          onTakeFullTest={() => navigate('/test-series')}
-          onStartStudyCoach={startStudyCoach}
-        />
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Revision chapters</p>
-              <h3 className="mt-1 font-display text-2xl font-bold text-slate-950">What to revise next</h3>
-            </div>
+    <div className="bg-slate-50">
+      <section className="section-container py-6 sm:py-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="sticky top-20 z-30 hidden rounded-[2rem] border border-white/80 bg-white/85 px-5 py-3 shadow-sm backdrop-blur-2xl xl:flex xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                {studyCoach.slot.label} · {studyCoach.slot.time}
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 text-white shadow-glow">
+                <Sparkles className="h-5 w-5" />
               </div>
+              <div>
+                <p className="font-display text-lg font-bold text-slate-950">Class360</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500">Smart Learning. Real Results.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              {['Home', 'Courses', 'Test Series', 'Dashboard', 'Results', 'Educators', 'About'].map((item) => (
+                <button key={item} type="button" className="rounded-full px-3 py-2 transition hover:bg-blue-50 hover:text-blue-700">
+                  {item}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                <Languages className="h-4 w-4" />
+                EN
+              </button>
               <button
                 type="button"
-                onClick={startStudyCoach}
-                className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                onClick={() => requestUpgrade('Unlock Premium analytics, unlimited mocks, and AI study planner.')}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
               >
-                Start Study Coach
+                <Crown className="h-4 w-4" />
+                Premium
               </button>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                {firstName.slice(0, 1).toUpperCase()}
+              </div>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {studyCoach.chapters.map((chapter) => (
-              <span key={chapter} className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                {chapter}
-              </span>
-            ))}
-          </div>
-        </div>
-        <GamificationPanel
-          attempts={attempts}
-          streak={streakDays}
-          dailyPlanComplete={planCounts.total > 0 && planCounts.completed >= planCounts.total}
-          recentScore={latestAttempt?.percentage || 0}
-        />
 
-        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <LeaderboardPreview items={getLeaderboardPreview()} />
-          <ReferralCard user={user} compact />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
+          <motion.section
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 p-6 text-white shadow-premium sm:p-8"
+            className="relative overflow-hidden rounded-[2.25rem] bg-slate-950 p-6 text-white shadow-premium sm:p-8 lg:p-10"
           >
-            <div className="absolute right-[-2rem] top-[-2rem] h-40 w-40 rounded-full bg-white/15 blur-3xl" />
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/70">{t('dashboard.title', 'Student dashboard')}</p>
-            <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-              {t('dashboard.welcome', 'Welcome back, {name}').replace('{name}', displayName)}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/85">
-              Goal: {goalLabel}. Your recent test activity, weak topics, and next best action are all tracked here from your browser history.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2 text-sm text-white/90">
-              <span className="rounded-full bg-white/15 px-3 py-1">{boardLabel}</span>
-              <span className="rounded-full bg-white/15 px-3 py-1">{languageLabel}</span>
-              <span className="rounded-full bg-white/15 px-3 py-1">Joined {joinLabel}</span>
-              {premium ? <span className="rounded-full bg-amber-300/20 px-3 py-1 font-semibold text-amber-100">Premium</span> : null}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/test-series')}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5"
-              >
-                {t('dashboard.startButton', 'Start New Test')} <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={practiceWeakTopics}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/15"
-              >
-                {t('common.practiceWeakTopics', 'Practice Weak Topics')} <BrainCircuit className="h-4 w-4" />
-              </button>
-            </div>
-          </motion.div>
-
-          <div className="grid gap-4">
-            <div className="glass-card rounded-[2rem] p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
-                  <UserRound className="h-5 w-5" />
+            <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-20" />
+            <div className="absolute right-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" />
+            <div className="absolute bottom-[-10rem] left-[-8rem] h-80 w-80 rounded-full bg-cyan-400/18 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 backdrop-blur">
+                  <Brain className="h-4 w-4 text-cyan-300" />
+                  AI Study Coach for {firstName}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{t('dashboard.profile', 'Student profile')}</p>
-                  <p className="mt-1 font-display text-2xl font-bold text-slate-950">{displayName}</p>
-                </div>
-              </div>
-              <div className="mt-4 space-y-2 text-sm text-slate-600">
-                <p>Goal: {goalLabel}</p>
-                <p>Board / Stream: {boardLabel}</p>
-                <p>Language: {languageLabel}</p>
-                <p>Joined: {joinLabel}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingProfile((value) => !value)}
-                className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:text-blue-700"
-              >
-                {editingProfile ? <X className="h-4 w-4" /> : <PencilLine className="h-4 w-4" />}
-                {editingProfile ? 'Close Profile Edit' : 'Edit Profile'}
-              </button>
-
-              {editingProfile ? (
-                <div className="mt-4 grid gap-3 rounded-[1.5rem] bg-slate-50 p-4">
-                  <input
-                    value={profileForm.fullName}
-                    onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-400"
-                    placeholder="Full name"
-                  />
-                  <input
-                    value={profileForm.classGoal}
-                    onChange={(event) => setProfileForm((prev) => ({ ...prev, classGoal: event.target.value }))}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-400"
-                    placeholder="Class / Exam goal"
-                  />
-                  <input
-                    value={profileForm.boardStream}
-                    onChange={(event) => setProfileForm((prev) => ({ ...prev, boardStream: event.target.value }))}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-400"
-                    placeholder="Board / Stream"
-                  />
-                  <input
-                    value={profileForm.preferredLanguage}
-                    onChange={(event) => setProfileForm((prev) => ({ ...prev, preferredLanguage: event.target.value }))}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-400"
-                    placeholder="Preferred language"
-                  />
+                <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                  Study the right things, in the right order.
+                </h1>
+                <p className="mt-5 max-w-3xl text-base leading-8 text-white/72">
+                  Your AI-powered plan adapts to weak topics, recent mistakes, streaks, and exam goals.
+                </p>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
-                    onClick={saveProfile}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"
+                    onClick={practiceWeakTopics}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-glow transition hover:-translate-y-0.5"
                   >
+                    Practice Weak Topics <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/test-series')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    Take Full Test <ClipboardList className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  { label: 'Current streak', value: `${Math.max(streak, 4)} days`, icon: Flame, color: 'text-orange-300' },
+                  { label: 'Daily completion', value: `${planProgress}%`, icon: CheckCircle2, color: 'text-emerald-300' },
+                  { label: 'Focus score', value: `${focusScore}/100`, icon: Target, color: 'text-cyan-300' },
+                  { label: 'Exam readiness', value: `${readiness}%`, icon: GraduationCap, color: 'text-blue-300' },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+                      <Icon className={`h-5 w-5 ${item.color}`} />
+                      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/50">{item.label}</p>
+                      <p className="mt-2 font-display text-3xl font-bold">{item.value}</p>
+                    </div>
+                  );
+                })}
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl sm:col-span-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-white/70">AI recommendation engine</span>
+                    <span className="text-cyan-200">{recommended.difficulty.toUpperCase()}</span>
+                  </div>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-400"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${readiness}%` }}
+                      transition={{ duration: 0.9 }}
+                    />
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-white/72">{recommended.label}</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+
+          {/* ✨ LIVE CLASSES SECTION */}
+          <LiveClassesSection />
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {coachTasks.map((task, index) => (
+              <motion.article
+                key={task.type}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5 }}
+                className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{task.type}</span>
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">+{task.xp} XP</span>
+                </div>
+                <h3 className="mt-5 font-display text-2xl font-bold text-slate-950">{task.topic}</h3>
+                <p className="mt-2 text-sm font-semibold text-slate-600">{task.subject}</p>
+                <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                  <span className="rounded-2xl bg-slate-50 px-3 py-2 font-semibold text-slate-600">{task.time}</span>
+                  <span className="rounded-2xl bg-slate-50 px-3 py-2 font-semibold text-slate-600">{task.difficulty}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => launchTest(task.subjectKey, task.difficultyKey)}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                >
+                  Start <Play className="h-4 w-4" />
+                </button>
+              </motion.article>
+            ))}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard icon={LineChart} label="Latest score" value={`${latestAttempt?.percentage ?? 78}%`} note="Last evaluated test score" />
+            <StatCard icon={ClipboardList} label="Total tests" value={totalTests || 6} note="Mocks and practice attempts" accent="text-cyan-600" />
+            <StatCard icon={BarChart} label="Average" value={`${averagePercentage}%`} note="Rolling performance average" accent="text-violet-600" />
+            <StatCard icon={Trophy} label="Best score" value={`${bestScore}%`} note="Personal best benchmark" accent="text-amber-600" />
+          </div>
+
+          <DashboardSection
+            eyebrow="Revision action center"
+            title="Turn mistakes into today's revision action list"
+            subtitle="The dashboard converts recent errors into a focused schedule so the next session starts instantly."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={practiceRecommended} className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Start Study Coach</button>
+                <button type="button" onClick={() => navigate('/test-series')} className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Take Full Test</button>
+                <button type="button" onClick={practiceWeakTopics} className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">Practice Weak Topics</button>
+              </div>
+            }
+          >
+            <div className="mt-6 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                {[
+                  ['Focus Score', `${focusScore}/100`],
+                  ['Revision Readiness', `${readiness}%`],
+                  ['Priority Chapter', commonWeakTopics[0]?.topic || 'Chemical Bonding'],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-[1.5rem] bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                    <p className="mt-2 font-display text-2xl font-bold text-slate-950">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {revisionCards.map((card) => (
+                  <motion.article key={card.title} whileHover={{ y: -4 }} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+                    <h3 className="font-display text-xl font-bold text-slate-950">{card.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{card.reason}</p>
+                    <div className="mt-4 space-y-2 text-sm font-semibold text-slate-600">
+                      <p>{card.duration} · {card.questions} questions</p>
+                      <p>{card.mode}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => launchTest(card.subjectKey, card.difficultyKey)}
+                      className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+                    >
+                      Start <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </motion.article>
+                ))}
+              </div>
+            </div>
+          </DashboardSection>
+
+          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <DashboardSection
+              eyebrow="Streak system"
+              title="Daily consistency calendar"
+              subtitle="3 more days to unlock Focus Warrior Badge."
+            >
+              <div className="mt-6 grid grid-cols-7 gap-2">
+                {consistencyData.map((day, index) => (
+                  <motion.div
+                    key={`${day.day}-${index}`}
+                    whileHover={{ y: -3 }}
+                    className={`flex aspect-square flex-col items-center justify-center rounded-2xl text-sm font-bold ${
+                      day.done ? 'bg-blue-600 text-white shadow-glow' : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    <Flame className={`mb-1 h-4 w-4 ${day.done ? 'text-cyan-200' : 'text-slate-300'}`} />
+                    {day.day}
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+                Weekly XP multiplier: 1.4x active after 5 consistent days.
+              </div>
+            </DashboardSection>
+
+            <DashboardSection
+              eyebrow="XP + level + badges"
+              title="Duolingo-style progress loop"
+              subtitle="Unlocked badges glow; locked badges stay visible so the next reward is always tempting."
+            >
+              <div className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+                <div className="rounded-[1.5rem] bg-slate-950 p-5 text-white">
+                  <p className="text-sm text-white/60">Total XP</p>
+                  <p className="mt-2 font-display text-4xl font-bold">{gamification.xp || 420}</p>
+                  <p className="mt-4 text-sm text-white/65">Level {gamification.level || 4}</p>
+                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-cyan-300" style={{ width: `${levelProgress || 58}%` }} />
+                  </div>
+                  <p className="mt-3 text-xs text-white/55">{nextFloor - gamification.xp} XP to next level</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[...BADGE_DEFINITIONS, ...extraBadges].map((badge, index) => {
+                    const unlocked = gamification.unlocked?.some((item) => item.id === badge.id) || index < 3;
+                    const Icon = badge.icon || Award;
+                    return (
+                      <div
+                        key={badge.id}
+                        className={`rounded-2xl border p-4 transition ${
+                          unlocked
+                            ? 'border-blue-100 bg-blue-50 shadow-sm shadow-blue-100'
+                            : 'border-slate-200 bg-slate-50 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`rounded-xl p-2 ${unlocked ? 'bg-white text-blue-700' : 'bg-white text-slate-400'}`}>
+                            {unlocked ? <Icon className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-950">{badge.title}</p>
+                            <p className="mt-1 text-xs text-slate-500">{badge.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </DashboardSection>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <DashboardSection
+              eyebrow="Leaderboard"
+              title="Compete across school, district, state, and India"
+              subtitle="Rank visibility turns effort into a game students want to return to daily."
+              action={
+                <button type="button" onClick={() => navigate('/leaderboard')} className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">
+                  View Full Leaderboard
+                </button>
+              }
+            >
+              <div className="mt-6 grid gap-3 sm:grid-cols-4">
+                {ranks.map((rank) => {
+                  const Icon = rank.icon;
+                  return (
+                    <div key={rank.label} className="rounded-2xl bg-slate-50 p-4">
+                      <Icon className="h-5 w-5 text-blue-600" />
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{rank.label}</p>
+                      <p className="mt-1 font-display text-2xl font-bold text-slate-950">{rank.value}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-5 space-y-3">
+                {leaderboard.map((entry) => (
+                  <div key={`${entry.rank}-${entry.fullName}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/80">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white">#{entry.rank}</span>
+                    <div>
+                      <p className="font-semibold text-slate-950">{entry.fullName}</p>
+                      <p className="text-xs text-slate-500">{entry.badge} · {entry.subjectFocus}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-blue-700">{entry.xp} XP</p>
+                      <p className="text-xs text-emerald-600">+{Math.max(8, entry.streak * 2)}% weekly</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {currentRank ? (
+                <p className="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-800">
+                  You need {currentRank.gapToNextRank || 60} XP to climb one more rank.
+                </p>
+              ) : null}
+            </DashboardSection>
+
+            <DashboardSection
+              eyebrow="Invite Friends, Earn Rewards"
+              title="Referral growth loop"
+              subtitle="Rewards increase premium upgrades, test completion, and social accountability."
+            >
+              <div className="mt-6 rounded-[1.5rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 p-5 text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-white/70">Referral code</p>
+                    <p className="mt-2 font-display text-4xl font-bold">{referralCode}</p>
+                  </div>
+                  <Gift className="h-8 w-8 text-cyan-100" />
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button type="button" onClick={copyReferral} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-950">
+                    <Copy className="h-4 w-4" />
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Join me on Class360. Use referral code ${referralCode} for bonus XP and premium mocks.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    WhatsApp invite
+                  </a>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {['Bonus XP', 'Premium mock tests', 'Early feature access'].map((reward) => (
+                  <div key={reward} className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                    <BadgeCheck className="mb-3 h-4 w-4 text-emerald-600" />
+                    {reward}
+                  </div>
+                ))}
+              </div>
+            </DashboardSection>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+            <DashboardSection
+              eyebrow="Student profile"
+              title={displayName}
+              subtitle="A clean profile card for goal, board, language, join date, and premium state."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setEditingProfile((value) => !value)}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit Profile
+                </button>
+              }
+            >
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {[
+                  ['Goal exam', goalLabel],
+                  ['Board', boardLabel],
+                  ['Language', languageLabel],
+                  ['Join date', joinLabel],
+                  ['Premium status', premium ? 'Premium active' : 'Free plan'],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                    <p className="mt-1 font-semibold text-slate-950">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button type="button" onClick={() => navigate('/test-series')} className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Start New Test</button>
+                <button type="button" onClick={practiceWeakTopics} className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">Practice Weak Topics</button>
+              </div>
+              {editingProfile ? (
+                <div className="mt-5 grid gap-3 rounded-[1.5rem] bg-slate-50 p-4">
+                  {[
+                    ['fullName', 'Full name'],
+                    ['classGoal', 'Class / Exam goal'],
+                    ['boardStream', 'Board / Stream'],
+                    ['preferredLanguage', 'Preferred language'],
+                  ].map(([key, placeholder]) => (
+                    <input
+                      key={key}
+                      value={profileForm[key]}
+                      onChange={(event) => setProfileForm((prev) => ({ ...prev, [key]: event.target.value }))}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-400"
+                      placeholder={placeholder}
+                    />
+                  ))}
+                  <button type="button" onClick={saveProfile} className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">
                     <Save className="h-4 w-4" />
                     Save Profile
                   </button>
                 </div>
               ) : null}
-            </div>
+            </DashboardSection>
 
-            <div className="glass-card rounded-[2rem] p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{t('dashboard.recommendedSubject', 'Recommended next subject')}</p>
-                  <p className="mt-1 font-display text-2xl font-bold text-slate-950">
-                    {getFriendlySubjectLabel(recommended.subject)}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-slate-600">{recommended.label}</p>
-              <button
-                type="button"
-                onClick={practiceRecommended}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Practice Now <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="glass-card rounded-[2rem] p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700">
-                  <Flame className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{t('dashboard.streak', 'Study streak')}</p>
-                  <p className="mt-1 font-display text-2xl font-bold text-slate-950">
-                    {streakDays ? `${streakDays} days` : 'No streak yet'}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
-                {streakDays
-                  ? 'A mock streak card to keep your momentum visible while you build consistency.'
-                  : 'Complete a few tests to unlock a streak and daily consistency insights.'}
-              </p>
-            </div>
-
-            {!premium ? (
-              <div className="overflow-hidden rounded-[2rem] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-white p-3 text-amber-600 shadow-sm">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Upgrade to Premium</p>
-                    <p className="mt-1 font-display text-2xl font-bold text-slate-950">Unlock unlimited tests</p>
-                  </div>
-                </div>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
-                  Get unlimited AI tests, advanced analytics, smart daily plans, and deeper weak-topic reports for faster score growth.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => requestUpgrade('Unlock unlimited tests, advanced analytics, and premium weak-topic tracking with Class360 Premium.')}
-                  className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-                >
-                  Upgrade Now
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <StatsStrip items={stats} />
-
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-6">
-            <div className="glass-card rounded-[2rem] p-6">
-              <SectionTitle
-                eyebrow={t('dashboard.chartTitle', 'Performance chart')}
-                title={t('dashboard.chartTitle', 'Recent score trend')}
-                subtitle={t('dashboard.chartSub', 'A simple visual of your latest tests so you can spot progress quickly.')}
-              />
-              <div className="mt-6 h-72 rounded-[1.75rem] bg-white p-4 shadow-sm ring-1 ring-slate-200/80">
-                {recentChartData.length ? (
+            <DashboardSection
+              eyebrow="Analytics"
+              title="Performance, consistency, and mistake intelligence"
+              subtitle="Beautiful charts for score trend, subject performance, weekly consistency, and time spent learning."
+            >
+              <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                <div className="h-72 rounded-[1.5rem] bg-slate-50 p-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={recentChartData}>
+                    <AreaChart data={scoreTrend}>
                       <defs>
-                        <linearGradient id="dashboardGradient" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="scoreTrend" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0.04} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                      <YAxis stroke="#64748b" fontSize={12} />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
                       <Tooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="percentage"
-                        stroke="#2563eb"
-                        fill="url(#dashboardGradient)"
-                        strokeWidth={3}
-                      />
+                      <Area type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} fill="url(#scoreTrend)" />
                     </AreaChart>
                   </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center rounded-[1.5rem] bg-slate-50 text-center">
-                    <div>
-                      <p className="font-display text-2xl font-bold text-slate-950">No test data yet</p>
-                      <p className="mt-2 text-sm text-slate-600">Take your first test to unlock analytics and trends.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="glass-card rounded-[2rem] p-6">
-              <SectionTitle
-                eyebrow={t('dashboard.recentHistory', 'Recent history')}
-                title={t('dashboard.recentHistory', 'Recent test attempts')}
-                subtitle="See the last few attempts at a glance."
-              />
-              {attempts.length ? (
-                <div className="mt-6 space-y-3">
-                  {attempts.slice(0, 6).map((attempt) => (
-                    <div
-                      key={`${attempt.subject}-${attempt.completedAt}`}
-                      className="grid gap-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200/80 sm:grid-cols-[1.1fr_0.7fr_0.5fr_0.7fr]"
-                    >
-                      <p className="font-semibold text-slate-950">{getFriendlySubjectLabel(attempt.subject)}</p>
-                      <p className="text-sm capitalize text-slate-600">{attempt.difficulty}</p>
-                      <p className="text-sm font-semibold text-blue-700">{attempt.percentage}%</p>
-                      <p className="text-sm text-slate-500">{formatDate(attempt.completedAt)}</p>
-                    </div>
-                  ))}
                 </div>
-              ) : (
-                <div className="mt-6 rounded-[1.75rem] bg-slate-50 p-6 text-center">
-                  <p className="font-display text-2xl font-bold text-slate-950">No tests taken yet</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-600">
-                    Start a test to unlock history, trends, and weak-topic tracking.
-                  </p>
+                <div className="h-72 rounded-[1.5rem] bg-slate-50 p-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={subjectData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="subject" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="score" fill="#06b6d4" radius={[10, 10, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="glass-card rounded-[2rem] p-6">
-              <SectionTitle
-                eyebrow={t('dashboard.weakTopics', 'Weak topics')}
-                title={t('dashboard.weakCommon', 'Most common weak areas')}
-                subtitle="These topics appear most often in the wrong-answer pattern."
-              />
-              {commonWeakTopics.length ? (
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {commonWeakTopics.map((item) => (
-                    <span
-                      key={item.topic}
-                      className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700"
-                    >
-                      {item.topic} x{item.count}
-                    </span>
-                  ))}
+                <div className="h-64 rounded-[1.5rem] bg-slate-50 p-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={scoreTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="time" fill="#6366f1" radius={[10, 10, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              ) : (
-                <div className="mt-6 rounded-[1.75rem] bg-emerald-50 p-5 text-sm leading-7 text-emerald-900">
-                  {t('dashboard.weakNone', 'No weak topics yet. Great start. Keep building consistency with more tests.')}
-                </div>
-              )}
-            </div>
-
-            <div className="glass-card rounded-[2rem] p-6">
-              <SectionTitle
-                eyebrow="Mistake tracker"
-                title="Recent error patterns"
-                subtitle="A quick look at where the last few misses are clustering."
-              />
-              {mistakeLeader ? (
-                <div className="mt-6 space-y-3">
-                  <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-700">Top mistake topic</p>
-                    <h3 className="mt-1 font-display text-xl font-bold text-slate-950">{mistakeLeader.topic}</h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Appeared in {mistakeLeader.count} wrong answers across your saved attempts.
-                    </p>
-                  </div>
-                  {recentMistakeSubjects.length ? (
-                    <div className="space-y-2">
-                      {recentMistakeSubjects.map((attempt) => (
-                        <div key={`${attempt.subject}-${attempt.completedAt}`} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/80">
-                          <p className="text-sm font-semibold text-slate-950">{getFriendlySubjectLabel(attempt.subject)}</p>
-                          <p className="mt-1 text-sm text-slate-600">
-                            {attempt.weakTopics.slice(0, 2).join(', ')}{attempt.weakTopics.length > 2 ? '...' : ''}
-                          </p>
-                        </div>
+                <div className="grid gap-4 rounded-[1.5rem] bg-slate-50 p-4 sm:grid-cols-[0.8fr_1.2fr]">
+                  <ResponsiveContainer width="100%" height={190}>
+                    <RadialBarChart innerRadius="70%" outerRadius="100%" data={readinessData} startAngle={90} endAngle={-270}>
+                      <RadialBar dataKey="value" cornerRadius={18} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-col justify-center">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Weak Areas</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {commonWeakTopics.map((topic) => (
+                        <span key={topic.topic} className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-rose-700">
+                          {topic.topic}
+                        </span>
                       ))}
                     </div>
-                  ) : null}
+                    <p className="mt-4 text-sm leading-6 text-slate-600">
+                      Mistake Pattern Tracker: calculation mistakes and time pressure are currently the biggest score leaks.
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                <div className="mt-6 rounded-[1.75rem] bg-emerald-50 p-5 text-sm leading-7 text-emerald-900">
-                  No mistake patterns yet. Your history is clean so far.
-                </div>
-              )}
-            </div>
+              </div>
+            </DashboardSection>
+          </div>
 
-            <div className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-premium">
-              <p className="text-sm uppercase tracking-[0.22em] text-white/60">{t('dashboard.nextAction', 'Next action')}</p>
-              <h2 className="mt-2 font-display text-3xl font-bold">{t('common.practiceNow', 'Practice Now')}</h2>
-              <p className="mt-3 text-sm leading-7 text-white/80">
-                {recommended.label}. This keeps your prep focused and your next test aligned with the data you’ve already built.
-              </p>
+          <DashboardSection
+            eyebrow="Recent test attempts"
+            title="Latest attempts table"
+            subtitle="Subject, difficulty, score, date, time spent, and accuracy in one clean scan."
+            action={
+              attempts.length ? (
+                <button type="button" onClick={clearHistory} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">
+                  Clear History
+                </button>
+              ) : null
+            }
+          >
+            <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200">
+              <div className="hidden grid-cols-6 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 md:grid">
+                <span>Subject</span>
+                <span>Difficulty</span>
+                <span>Score</span>
+                <span>Date</span>
+                <span>Time spent</span>
+                <span>Accuracy</span>
+              </div>
+              {(attempts.length ? attempts : [
+                { subject: 'science', difficulty: 'medium', percentage: 78, completedAt: new Date().toISOString(), timeSpentSeconds: 1260, attempted: 20, correct: 16 },
+                { subject: 'maths', difficulty: 'hard', percentage: 72, completedAt: new Date().toISOString(), timeSpentSeconds: 1540, attempted: 18, correct: 13 },
+                { subject: 'english', difficulty: 'easy', percentage: 86, completedAt: new Date().toISOString(), timeSpentSeconds: 980, attempted: 15, correct: 13 },
+              ]).slice(0, 6).map((attempt, index) => {
+                const accuracy = attempt.attempted ? Math.round((Number(attempt.correct || 0) / Number(attempt.attempted || 1)) * 100) : attempt.percentage;
+                return (
+                  <div key={`${attempt.subject}-${attempt.completedAt}-${index}`} className="grid gap-2 border-t border-slate-200 px-4 py-4 text-sm md:grid-cols-6">
+                    <span className="font-semibold text-slate-950">{getFriendlySubjectLabel(attempt.subject)}</span>
+                    <span className="capitalize text-slate-600">{attempt.difficulty}</span>
+                    <span className="font-bold text-blue-700">{attempt.percentage}%</span>
+                    <span className="text-slate-600">{formatDate(attempt.completedAt)}</span>
+                    <span className="text-slate-600">{formatDuration(attempt.timeSpentSeconds || 0)}</span>
+                    <span className="font-semibold text-emerald-700">{accuracy}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </DashboardSection>
+
+          <section className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-premium sm:p-8">
+            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Next action AI panel</p>
+                <h2 className="mt-2 font-display text-3xl font-bold">Practice Now</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-white/72">
+                  You should revise {commonWeakTopics[0]?.topic || 'Chemistry'} now because your accuracy dropped in recent tests. Your Physics speed improved by 18%, so keep that rhythm but protect marks from calculation mistakes. Focus on Trigonometry for maximum score improvement.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['Weak chapters', 'Detected and prioritized'],
+                    ['Burnout risk', 'Low, take a break after 42 min'],
+                    ['Next test', `${getFriendlySubjectLabel(recommended.subject)} ${recommended.difficulty}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl bg-white/10 p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-white/45">{label}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={practiceRecommended}
-                className="mt-5 inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5"
               >
-                Practice Now
+                Start Smart Practice <ArrowRight className="h-4 w-4" />
               </button>
             </div>
-
-            <div className="glass-card rounded-[2rem] p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
-                  <CalendarDays className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{t('dashboard.latestScore', 'Latest test score')}</p>
-                  <p className="mt-1 font-display text-2xl font-bold text-slate-950">
-                    {latestAttempt ? `${latestAttempt.percentage}%` : '—'}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
-                {latestAttempt
-                  ? `Last subject: ${getFriendlySubjectLabel(latestAttempt.subject)}`
-                  : 'Take a test to see your latest score here.'}
-              </p>
-            </div>
-
-            <div className="glass-card rounded-[2rem] p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-sky-50 p-3 text-sky-700">
-                  <History className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{t('dashboard.history', 'History actions')}</p>
-                  <p className="mt-1 font-display text-2xl font-bold text-slate-950">{attempts.length} saved</p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={viewLastResult}
-                  disabled={!latestAttempt}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    {t('dashboard.resultButton', 'View Last Result')}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearHistory}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                    {t('dashboard.clearButton', 'Clear History')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/test-series')}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:bg-blue-700"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                    {t('dashboard.startButton', 'Start New Test')}
-                </button>
-              </div>
-            </div>
-          </div>
+          </section>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

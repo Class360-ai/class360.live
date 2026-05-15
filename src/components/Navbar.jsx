@@ -20,13 +20,10 @@ export default function Navbar() {
   const navKeyForHref = (href) => {
     const map = {
       '/': 'home',
-      '/voice-learning': 'voiceLearning',
       '/courses': 'courses',
-      '/business-market-learning': 'businessMarketLearning',
       '/test-series': 'testSeries',
       '/results': 'results',
       '/educators': 'educators',
-      '/app-preview': 'appPreview',
       '/dashboard': 'dashboard',
       '/about': 'about',
       '/contact': 'contact',

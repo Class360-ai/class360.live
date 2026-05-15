@@ -45,6 +45,15 @@ function emitAuthChange() {
   window.dispatchEvent(new Event('class360-auth-changed'));
 }
 
+function createDemoCredentialHash(password, email = '') {
+  const input = `${String(email).trim().toLowerCase()}:${String(password || '')}`;
+  let hash = 5381;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ input.charCodeAt(index);
+  }
+  return `demo_${(hash >>> 0).toString(36)}`;
+}
+
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
@@ -86,7 +95,7 @@ export function signupUser(userData) {
     name,
     fullName: name,
     email: String(userData.email || '').trim().toLowerCase(),
-    password: String(userData.password || ''),
+    credentialHash: createDemoCredentialHash(userData.password, userData.email),
     classGoal,
     studentType,
     classLevel,
@@ -110,13 +119,25 @@ export function loginUser(email, password) {
   }
 
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (user.email !== normalizedEmail || user.password !== String(password || '')) {
+  const expectedHash = createDemoCredentialHash(password, normalizedEmail);
+  const legacyPasswordMatch = user.password && user.password === String(password || '');
+  if (user.email !== normalizedEmail || (user.credentialHash !== expectedHash && !legacyPasswordMatch)) {
     return { ok: false, message: 'Email or password is incorrect. Please try again.' };
+  }
+
+  let authenticatedUser = user;
+  if (legacyPasswordMatch || user.password) {
+    const { password: _unusedPassword, ...userWithoutPassword } = user;
+    authenticatedUser = {
+      ...userWithoutPassword,
+      credentialHash: expectedHash,
+    };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(authenticatedUser));
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify({ email: user.email, loggedInAt: new Date().toISOString() }));
   emitAuthChange();
-  return { ok: true, user };
+  return { ok: true, user: authenticatedUser };
 }
 
 export function logoutUser() {

@@ -13,6 +13,9 @@ import {
   getSubjects,
   updateProgress,
   updateDailySeriesProgress,
+  getLiveClasses,
+  joinLiveClass,
+  setLiveClassReminder,
 } from '../controllers/learningController.js';
 
 const router = Router();
@@ -26,6 +29,9 @@ router.post('/progress/update', updateProgress);
 router.get('/progress/:userId', getProgressByUser);
 router.post('/ai/doubt', askDoubt);
 router.get('/dashboard', getDashboard);
+router.get('/live-classes', getLiveClasses);
+router.post('/live-classes/:id/join', joinLiveClass);
+router.post('/live-classes/:id/reminder', setLiveClassReminder);
 router.get('/daily-series/progress/:userId', getDailySeriesProgressByUser);
 router.post('/daily-series/progress/update', updateDailySeriesProgress);
 router.get('/daily-series/:slug/days/:dayNumber', getDailySeriesDay);
