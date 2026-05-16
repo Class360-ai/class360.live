@@ -56,7 +56,7 @@ import {
 import { getFriendlySubjectLabel, TEST_SETUP_KEY } from '../utils/testFlow';
 import { getStoredUser, updateStoredUser } from '../utils/authStorage';
 import { clearTestAttempts, getLatestAttempt, getTestAttempts } from '../utils/testStorage';
-import { getPlanCompletionCount, getStreak } from '../utils/planGenerator';
+import { getPlanCompletionCount, getStreakData, getStreakState } from '../utils/planGenerator';
 import { BADGE_DEFINITIONS, getGamificationSnapshot } from '../utils/gamification';
 import { generateReferralCode, getCurrentUserRank, getLeaderboardData } from '../utils/leaderboard';
 import { canTakeFullTestToday, isPremiumUser, requestUpgrade } from '../utils/premium';
@@ -315,7 +315,9 @@ export default function Dashboard() {
     ? Math.round(attempts.reduce((sum, attempt) => sum + Number(attempt.percentage || 0), 0) / totalTests)
     : 74;
   const bestScore = totalTests ? Math.max(...attempts.map((attempt) => Number(attempt.percentage || 0))) : 86;
-  const streak = getStreak();
+  const streakData = getStreakData();
+  const streakState = getStreakState(streakData);
+  const streak = Number(streakData.currentStreak || 0);
   const planCounts = getPlanCompletionCount();
   const recommended = getRecommendedSetup(attempts);
   const weakTopics = countTopics(attempts);
@@ -515,15 +517,16 @@ export default function Dashboard() {
           <motion.section
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-[2.25rem] bg-slate-950 p-6 text-white shadow-premium sm:p-8 lg:p-10"
+            className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#0B1020] via-[#111827] to-[#0F172A] p-6 text-white shadow-[0_45px_120px_-50px_rgba(15,23,42,0.95)] sm:p-8 lg:p-10"
           >
-            <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-20" />
-            <div className="absolute right-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" />
-            <div className="absolute bottom-[-10rem] left-[-8rem] h-80 w-80 rounded-full bg-cyan-400/18 blur-3xl" />
-            <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-15" />
+            <div className="absolute left-6 top-10 h-36 w-36 rounded-full bg-blue-500/15 blur-3xl" />
+            <div className="absolute right-8 top-[-4rem] h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+            <div className="absolute right-[-4rem] bottom-[-3rem] h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-start">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-gradient-to-r from-slate-900/60 via-slate-800/40 to-slate-900/40 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-sm backdrop-blur">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-glow">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_0_40px_rgba(34,211,238,0.16)] backdrop-blur-xl">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white shadow-glow">
                     <Brain className="h-5 w-5" />
                   </div>
                   <div className="leading-tight">
@@ -531,24 +534,24 @@ export default function Dashboard() {
                     <div className="text-xs text-white/60">for {firstName}</div>
                   </div>
                 </div>
-                <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-tight">
+                <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl leading-tight">
                   Study the right things, in the right order.
                 </h1>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-white/72">
+                <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
                   Your AI-powered plan adapts to weak topics, recent mistakes, streaks, and exam goals.
                 </p>
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={practiceWeakTopics}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_10px_40px_-20px_rgba(37,99,235,0.45)] transition hover:-translate-y-0.5"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 px-7 py-4 text-sm font-semibold text-slate-950 shadow-[0_16px_50px_-26px_rgba(56,189,248,0.85)] transition hover:-translate-y-0.5"
                   >
                     Practice Weak Topics <ArrowRight className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => navigate('/test-series')}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
                   >
                     Take Full Test <ClipboardList className="h-4 w-4" />
                   </button>
@@ -556,41 +559,68 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { label: 'Current streak', value: `${Math.max(streak, 4)} days`, icon: Flame, color: 'text-amber-300' },
-                  { label: 'Daily completion', value: `${planProgress}%`, icon: CheckCircle2, color: 'text-emerald-300' },
-                  { label: 'Focus score', value: `${focusScore}/100`, icon: Target, color: 'text-cyan-300' },
-                  { label: 'Exam readiness', value: `${readiness}%`, icon: GraduationCap, color: 'text-blue-300' },
+                  { label: 'Streak', value: streakState.dayLabel, note: streakState.activeToday ? 'Live streak tracking' : streakState.atRisk ? streakState.riskMessage : 'Start your first active day', icon: Flame, accent: 'from-amber-400 to-orange-400' },
+                  { label: 'Daily completion', value: `${planProgress}%`, note: 'Tasks finished today', icon: CheckCircle2, accent: 'from-emerald-400 to-teal-400' },
+                  { label: 'Focus score', value: `${focusScore}/100`, note: 'AI concentration index', icon: Target, accent: 'from-cyan-400 to-blue-500' },
+                  { label: 'Exam readiness', value: `${readiness}%`, note: 'Confidence meter', icon: GraduationCap, accent: 'from-blue-500 to-indigo-500' },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-2xl border border-white/6 bg-gradient-to-br from-slate-900/60 via-slate-950/40 to-slate-900/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
-                      <div className="flex items-center justify-between">
+                    <motion.div
+                      key={item.label}
+                      whileHover={{ y: -4, scale: 1.01 }}
+                      className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur-xl transition"
+                    >
+                      <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">{item.label}</p>
-                          <p className="mt-2 font-display text-3xl font-bold text-white">{item.value}</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{item.label}</p>
+                          <p className="mt-3 font-display text-3xl font-bold text-white">{item.value}</p>
                         </div>
-                        <div className={`rounded-2xl p-3 bg-white/6 ${item.color}`}>
-                          <Icon className="h-5 w-5 text-white" />
+                        <div className={`rounded-3xl bg-gradient-to-br ${item.accent} p-4 text-white shadow-[0_18px_55px_-30px_rgba(56,189,248,0.9)]`}>
+                          <Icon className="h-5 w-5" />
                         </div>
                       </div>
-                    </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-400">{item.note}</p>
+                    </motion.div>
                   );
                 })}
-                <div className="rounded-2xl border border-white/6 bg-gradient-to-br from-slate-900/60 via-slate-950/40 to-slate-900/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md sm:col-span-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-white/70">AI recommendation engine</span>
-                    <span className="text-cyan-200 font-semibold">{recommended.difficulty.toUpperCase()}</span>
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur-xl sm:col-span-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">AI recommendation engine</p>
+                      <p className="mt-2 text-base font-semibold text-white">{recommended.label}</p>
+                    </div>
+                    <span className="rounded-full bg-slate-950/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200 shadow-[0_0_24px_rgba(56,189,248,0.25)]">
+                      {recommended.difficulty.toUpperCase()}
+                    </span>
                   </div>
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/8">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-indigo-500 shadow-[0_8px_20px_-12px_rgba(59,130,246,0.6)]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${readiness}%` }}
-                      transition={{ duration: 0.9 }}
-                    />
+                  <div className="mt-6 rounded-full bg-white/10 p-1">
+                    <div className="relative overflow-hidden rounded-full bg-slate-950/60 h-4">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-500 shadow-[0_0_30px_rgba(56,189,248,0.5)]"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${readiness}%` }}
+                        transition={{ duration: 1.1, ease: 'easeOut' }}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm text-slate-400">
+                      <span>Weak topic detected</span>
+                      <span>{streakState.canFreeze ? 'Streak freeze available' : 'Streak protection locked'}</span>
+                    </div>
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-white/72">{recommended.label}</p>
-                </div>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    {commonWeakTopics.slice(0, 3).map((topic) => (
+                      <div key={topic.topic} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 shadow-[0_20px_50px_-40px_rgba(56,189,248,0.35)]">
+                        <p className="font-semibold text-white">{topic.topic}</p>
+                        <p className="mt-1 text-xs text-slate-400">{topic.count} weak tasks</p>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
               </div>
             </div>
           </motion.section>
