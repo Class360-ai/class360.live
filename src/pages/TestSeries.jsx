@@ -207,9 +207,7 @@ export default function TestSeries() {
         </div>
       </section>
 
-      <section className="section-container mt-10">
-        <StatsStrip items={testSeriesStats} />
-      </section>
+      {/* Stats strip removed as requested */}
 
       <section className="section-container mt-16">
         <SectionTitle
