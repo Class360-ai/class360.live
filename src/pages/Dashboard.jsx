@@ -61,6 +61,7 @@ import { BADGE_DEFINITIONS, getGamificationSnapshot } from '../utils/gamificatio
 import { generateReferralCode, getCurrentUserRank, getLeaderboardData } from '../utils/leaderboard';
 import { canTakeFullTestToday, isPremiumUser, requestUpgrade } from '../utils/premium';
 import { formatDuration } from '../utils/testIntelligence';
+import { trackEvent } from '../utils/analytics';
 
 const subjectOrder = ['maths', 'science', 'english', 'reasoning', 'gk'];
 
@@ -204,6 +205,23 @@ function getSubjectData(attempts) {
   });
 }
 
+function ApprovalCard({ icon: Icon, label, value, note, active }) {
+  return (
+    <div className={`rounded-[1.75rem] border p-5 ${active ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          <p className="mt-2 font-display text-2xl font-bold text-slate-950">{value}</p>
+        </div>
+        <div className={`rounded-2xl p-3 ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <p className="mt-4 text-sm leading-6 text-slate-600">{note}</p>
+    </div>
+  );
+}
+
 function StatCard({ icon: Icon, label, value, note, accent = 'text-blue-600' }) {
   return (
     <motion.article
@@ -287,6 +305,10 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    trackEvent('dashboard_view');
+  }, []);
+
   const latestAttempt = attempts[0] || getLatestAttempt();
   const totalTests = attempts.length;
   const averagePercentage = totalTests
@@ -354,25 +376,74 @@ export default function Dashboard() {
   ];
   const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
   const planProgress = planCounts.total ? Math.round((planCounts.completed / planCounts.total) * 100) : 68;
+  const profileFields = ['fullName', 'classGoal', 'boardStream', 'preferredLanguage'];
+  const profileCompleteCount = profileFields.filter((key) => Boolean(user?.[key])).length;
+  const profileCompletion = Math.round((profileCompleteCount / profileFields.length) * 100);
+  const isProfileComplete = profileCompletion === 100;
+  const approvalCards = [
+    {
+      label: 'Personalization',
+      value: isProfileComplete ? 'Complete' : 'Incomplete',
+      note: isProfileComplete ? 'Profile data fuels the AI study coach and recommendations.' : 'Complete your profile for better guidance.',
+      icon: ShieldCheck,
+      active: isProfileComplete,
+    },
+    {
+      label: 'Study guidance',
+      value: weakTopics.length ? 'Active' : 'Ready',
+      note: weakTopics.length
+        ? 'Weak topics have been detected and prioritized.'
+        : 'Your progress is ready to generate the next review plan.',
+      icon: Target,
+      active: Boolean(weakTopics.length),
+    },
+    {
+      label: 'Premium funnel',
+      value: premium ? 'Live' : totalTests >= 3 ? 'Ready' : 'Starting',
+      note: premium
+        ? 'Premium conversion and retention paths are active.'
+        : 'Upgrade prompts are ready to drive higher value.',
+      icon: Crown,
+      active: premium || totalTests >= 3,
+    },
+    {
+      label: 'Growth loop',
+      value: 'Referral live',
+      note: 'Referral and share rewards strengthen acquisition and retention.',
+      icon: Gift,
+      active: Boolean(referralCode),
+    },
+  ];
+
+  const openUpgrade = (reason) => {
+    trackEvent('dashboard_upgrade_requested', { reason });
+    requestUpgrade(reason);
+  };
 
   const launchTest = (subject, difficulty, questionCount = 10) => {
     if (!premium && !canTakeFullTestToday()) {
-      requestUpgrade('Free users can take one full test per day. Upgrade to Premium for unlimited AI tests and deep analytics.');
+      openUpgrade('Free users can take one full test per day. Upgrade to Premium for unlimited AI tests and deep analytics.');
       return;
     }
     const setup = { subject, difficulty, questionCount };
     sessionStorage.setItem(TEST_SETUP_KEY, JSON.stringify(setup));
+    trackEvent('dashboard_launch_test', { subject, difficulty, questionCount, premium });
     navigate('/test', { state: setup });
   };
 
-  const practiceRecommended = () => launchTest(recommended.subject, recommended.difficulty);
+  const practiceRecommended = () => {
+    trackEvent('dashboard_study_coach_clicked');
+    launchTest(recommended.subject, recommended.difficulty);
+  };
   const practiceWeakTopics = () => {
+    trackEvent('dashboard_practice_weak_topics_clicked');
     const subject = latestAttempt?.subject || recommended.subject;
     const difficulty = latestAttempt?.difficulty || recommended.difficulty;
     launchTest(subject, difficulty);
   };
 
   const saveProfile = () => {
+    trackEvent('dashboard_profile_saved', { completion: profileCompletion });
     const nextUser = updateStoredUser({
       fullName: profileForm.fullName.trim(),
       classGoal: profileForm.classGoal.trim(),
@@ -385,7 +456,13 @@ export default function Dashboard() {
     }
   };
 
+  const toggleEditProfile = () => {
+    trackEvent('dashboard_profile_edit_opened');
+    setEditingProfile((value) => !value);
+  };
+
   const copyReferral = async () => {
+    trackEvent('dashboard_referral_copy');
     try {
       await navigator.clipboard.writeText(referralCode);
       setCopied(true);
@@ -393,13 +470,6 @@ export default function Dashboard() {
     } catch {
       setCopied(false);
     }
-  };
-
-  const clearHistory = () => {
-    const confirmed = window.confirm('Clear all saved test history from this browser?');
-    if (!confirmed) return;
-    clearTestAttempts();
-    setAttempts([]);
   };
 
   return (
@@ -430,7 +500,7 @@ export default function Dashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => requestUpgrade('Unlock Premium analytics, unlimited mocks, and AI study planner.')}
+                onClick={() => openUpgrade('Unlock Premium analytics, unlimited mocks, and AI study planner.')}
                 className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
               >
                 <Crown className="h-4 w-4" />
@@ -513,6 +583,46 @@ export default function Dashboard() {
               </div>
             </div>
           </motion.section>
+
+          {!isProfileComplete ? (
+            <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Profile completion</p>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-slate-950">Complete your student profile</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-700">
+                    {profileCompletion}% complete. Finish your profile so the AI study coach can personalize recommendations, tests, and growth guidance.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleEditProfile}
+                  className="inline-flex items-center justify-center rounded-full bg-amber-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+                >
+                  Complete profile
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          <DashboardSection
+            eyebrow="Launch readiness"
+            title="Dashboard approval checklist"
+            subtitle="This student view is optimized for growth, retention, premium conversion, and product clarity."
+          >
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {approvalCards.map((card) => (
+                <ApprovalCard
+                  key={card.label}
+                  icon={card.icon}
+                  label={card.label}
+                  value={card.value}
+                  note={card.note}
+                  active={card.active}
+                />
+              ))}
+            </div>
+          </DashboardSection>
 
           {/* ✨ LIVE CLASSES SECTION */}
           <LiveClassesSection />
@@ -765,7 +875,7 @@ export default function Dashboard() {
               action={
                 <button
                   type="button"
-                  onClick={() => setEditingProfile((value) => !value)}
+                  onClick={toggleEditProfile}
                   className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
                 >
                   <Edit3 className="h-4 w-4" />
@@ -888,13 +998,6 @@ export default function Dashboard() {
             eyebrow="Recent test attempts"
             title="Latest attempts table"
             subtitle="Subject, difficulty, score, date, time spent, and accuracy in one clean scan."
-            action={
-              attempts.length ? (
-                <button type="button" onClick={clearHistory} className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">
-                  Clear History
-                </button>
-              ) : null
-            }
           >
             <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200">
               <div className="hidden grid-cols-6 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 md:grid">

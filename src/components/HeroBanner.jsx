@@ -38,7 +38,7 @@ export default function HeroBanner({
               {secondaryCta}
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">Trusted by 50K+ learners</span>
+              <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">Trusted by 1.5K+ learners</span>
               <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">Live classes + smart analytics</span>
             </div>
             {footerContent ? <div className="mt-7">{footerContent}</div> : null}

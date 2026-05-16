@@ -76,9 +76,6 @@ export default function Courses() {
                 <p className="text-sm text-white/60">Course planning view</p>
                 <h3 className="mt-2 font-display text-3xl font-bold">Study with a clear roadmap</h3>
               </div>
-              <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/90">
-                4.8 rating
-              </div>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {[

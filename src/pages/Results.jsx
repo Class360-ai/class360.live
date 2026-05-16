@@ -8,6 +8,7 @@ import SectionTitle from '../components/SectionTitle';
 import {
   highlightedTopers,
   improvements,
+  partnerInstitutions,
   resultStats,
   successStories,
   testimonials,
@@ -71,10 +72,10 @@ export default function Results() {
               <motion.div
                 key={item.label}
                 whileHover={{ y: -4 }}
-                className="rounded-[1.5rem] bg-slate-950 p-5 text-white shadow-premium"
+                className="rounded-[1.5rem] bg-gradient-to-br from-blue-700 via-indigo-700 to-cyan-700 p-5 text-white shadow-glow"
               >
                 <p className="font-display text-3xl font-bold">{item.value}</p>
-                <p className="mt-2 text-sm text-white/65">{item.label}</p>
+                <p className="mt-2 text-sm text-slate-200">{item.label}</p>
               </motion.div>
             ))}
           </div>
@@ -96,11 +97,43 @@ export default function Results() {
               viewport={{ once: true, amount: 0.35 }}
               transition={{ duration: 0.35, delay: index * 0.05 }}
               whileHover={{ y: -4 }}
-              className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"
+              className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 shadow-xl ring-1 ring-white/10"
             >
-              <p className="font-display text-3xl font-bold text-slate-950">{item.value}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{item.label}</p>
+              <p className="font-display text-3xl font-bold text-white">{item.value}</p>
+              <p className="mt-2 text-sm leading-6 text-cyan-200">{item.label}</p>
             </motion.div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section-container mt-16">
+        <SectionTitle
+          eyebrow="Partners"
+          title="Trusted by leading schools, institutes, and coaching brands"
+          subtitle="Strategic partnerships with premium education organizations show our enterprise-grade scale and credibility."
+        />
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {partnerInstitutions.map((partner, index) => (
+            <motion.article
+              key={partner.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.35, delay: index * 0.04 }}
+              whileHover={{ y: -5 }}
+              className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 shadow-glow ring-1 ring-white/10"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">{partner.name}</p>
+                  <p className="mt-1 text-sm text-slate-300">{partner.type}</p>
+                </div>
+                <span className="rounded-full bg-cyan-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-sm">
+                  Partner
+                </span>
+              </div>
+              <p className="mt-5 text-sm leading-7 text-slate-200">{partner.detail}</p>
+            </motion.article>
           ))}
         </div>
       </section>
