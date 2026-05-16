@@ -426,6 +426,10 @@ export default function Dashboard() {
     requestUpgrade(reason);
   };
 
+  const scrollToDailyPlan = () => {
+    document.getElementById('daily-plan-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const launchTest = (subject, difficulty, questionCount = 10) => {
     if (!premium && !canTakeFullTestToday()) {
       openUpgrade('Free users can take one full test per day. Upgrade to Premium for unlimited AI tests and deep analytics.');
@@ -554,6 +558,13 @@ export default function Dashboard() {
                   </button>
                   <button
                     type="button"
+                    onClick={scrollToDailyPlan}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    Complete Today's Plan <CheckCircle2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => navigate('/test-series')}
                     className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
                   >
@@ -629,7 +640,9 @@ export default function Dashboard() {
             </div>
           </motion.section>
 
-          <DailyPlan plan={dailyPlan} />
+          <div id="daily-plan-section">
+            <DailyPlan plan={dailyPlan} />
+          </div>
 
           {!isProfileComplete ? (
             <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
