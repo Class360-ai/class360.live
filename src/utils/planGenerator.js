@@ -529,11 +529,14 @@ export function getStreakState(streakData = getStreakData()) {
   const broken = !activeToday && streakData.lastActiveDay && gapDays >= 1 && !atRisk;
   const canFreeze = isPremiumUser() && Number(streakData.streakFreezeCount || 0) > 0 && gapDays === 1;
   let riskMessage = null;
+  const currentStreak = Number(streakData.currentStreak || 0);
 
   if (atRisk) {
     riskMessage = 'Complete one task today to keep your streak alive.';
   } else if (broken) {
     riskMessage = 'Your streak has cooled off. Resume consistent activity to rebuild.';
+  } else if (currentStreak === 0) {
+    riskMessage = 'Start today and build a winning streak.';
   }
 
   return {
@@ -543,7 +546,7 @@ export function getStreakState(streakData = getStreakData()) {
     broken,
     canFreeze,
     riskMessage,
-    dayLabel: `Day ${Math.max(streakData.currentStreak || 1, 1)}`,
+    dayLabel: currentStreak > 0 ? `Day ${currentStreak}` : 'No streak yet',
   };
 }
 

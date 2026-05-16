@@ -56,7 +56,7 @@ import {
 import { getFriendlySubjectLabel, TEST_SETUP_KEY } from '../utils/testFlow';
 import { getStoredUser, updateStoredUser } from '../utils/authStorage';
 import { clearTestAttempts, getLatestAttempt, getTestAttempts } from '../utils/testStorage';
-import { getPlanCompletionCount, getStreakData, getStreakState } from '../utils/planGenerator';
+import { getPlanCompletionCount, getRevisionCalendar, getStreakData, getStreakState } from '../utils/planGenerator';
 import { BADGE_DEFINITIONS, getGamificationSnapshot } from '../utils/gamification';
 import { generateReferralCode, getCurrentUserRank, getLeaderboardData } from '../utils/leaderboard';
 import { canTakeFullTestToday, isPremiumUser, requestUpgrade } from '../utils/premium';
@@ -336,8 +336,10 @@ export default function Dashboard() {
     recentScore: latestAttempt?.percentage || 0,
   });
   const levelFloor = gamification.floor || 0;
-  const nextFloor = gamification.nextFloor || Math.max(gamification.xp + 300, 1000);
+  const nextFloor = gamification.nextFloor ?? Math.max(gamification.xp + 300, 1000);
   const levelProgress = Math.min(100, Math.round(((gamification.xp - levelFloor) / Math.max(1, nextFloor - levelFloor)) * 100));
+  const unlockedBadgeIds = new Set((gamification.unlocked || []).map((badge) => badge.id));
+  const nextBadge = BADGE_DEFINITIONS.find((badge) => !unlockedBadgeIds.has(badge.id));
   const referralCode = generateReferralCode(user || {});
   const leaderboard = getLeaderboardData('Overall').slice(0, 5);
   const currentRank = getCurrentUserRank('Overall');
@@ -377,6 +379,11 @@ export default function Dashboard() {
     { day: 'S', done: streak >= 7 ? 1 : 0 },
   ];
   const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
+  const revisionCalendar = getRevisionCalendar(attempts);
+  const consistencyData = revisionCalendar.map((day) => ({
+    day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(`${day.key}T00:00:00`).getDay()] || day.label.slice(-1),
+    done: Boolean(day.active),
+  }));
   const planProgress = planCounts.total ? Math.round((planCounts.completed / planCounts.total) * 100) : 68;
   const profileFields = ['fullName', 'classGoal', 'boardStream', 'preferredLanguage'];
   const profileCompleteCount = profileFields.filter((key) => Boolean(user?.[key])).length;
@@ -774,7 +781,11 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-                Weekly XP multiplier: 1.4x active after 5 consistent days.
+                {streakState.atRisk
+                  ? streakState.riskMessage
+                  : streakState.broken
+                  ? streakState.riskMessage
+                  : `${streakState.currentStreak || 0} day streak. ${streakState.canFreeze ? 'Premium streak freeze is ready.' : 'Keep practicing daily to protect your streak.'}`}
               </div>
             </DashboardSection>
 
@@ -794,8 +805,8 @@ export default function Dashboard() {
                   <p className="mt-3 text-xs text-white/55">{nextFloor - gamification.xp} XP to next level</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {[...BADGE_DEFINITIONS, ...extraBadges].map((badge, index) => {
-                    const unlocked = gamification.unlocked?.some((item) => item.id === badge.id) || index < 3;
+                  {[...BADGE_DEFINITIONS, ...extraBadges].map((badge) => {
+                    const unlocked = unlockedBadgeIds.has(badge.id);
                     const Icon = badge.icon || Award;
                     return (
                       <div
