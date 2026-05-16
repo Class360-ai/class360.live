@@ -1,40 +1,8 @@
 export const resultStats = [
-  { value: '1.5K+', label: 'Students' },
-  { value: '2.5K+', label: 'Tests Completed' },
+  { value: '50,000+', label: 'Students' },
+  { value: '10,000+', label: 'Tests Completed' },
+  { value: '500+', label: 'Selections' },
   { value: '95%', label: 'Satisfaction' },
-];
-
-export const partnerInstitutions = [
-  {
-    name: 'Apex Academy',
-    type: 'Coaching Institute',
-    detail: 'JEE / NEET mentor ecosystem with premium campus batches.',
-  },
-  {
-    name: 'Golden Gate School',
-    type: 'K12 School',
-    detail: 'Hybrid STEM curriculum and parent-engagement infrastructure.',
-  },
-  {
-    name: 'Excel Tuition House',
-    type: 'Coaching Centre',
-    detail: 'Board, Olympiad, and scholarship coaching for high-potential learners.',
-  },
-  {
-    name: 'Sage Learning Labs',
-    type: 'Institution',
-    detail: 'Digital school partner powering modern classroom analytics.',
-  },
-  {
-    name: 'FuturePath Education',
-    type: 'School Network',
-    detail: 'Foundational plus competitive prep for emerging education brands.',
-  },
-  {
-    name: 'Prism EduTech',
-    type: 'EdTech Partner',
-    detail: 'AI-enabled learning analytics and growth reporting for institutes.',
-  },
 ];
 
 export const topperFilters = ['All', 'JEE', 'NEET', 'SSC', 'Banking', 'CUET', 'Boards'];

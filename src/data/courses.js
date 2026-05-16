@@ -10,8 +10,10 @@ import {
 export const courseFilters = ['All', 'IIT JEE', 'NEET', 'SSC', 'Banking', 'Board Exams', 'Foundation', 'CUET'];
 
 export const courseTrustStats = [
-  { value: '1.5K+', label: 'learners guided' },
-  { value: '2.5K+', label: 'tests taken' },
+  { value: '50K+', label: 'learners guided' },
+  { value: '10K+', label: 'tests taken' },
+  { value: '500+', label: 'selections' },
+  { value: '4.8', label: 'average rating' },
 ];
 
 export const featuredCourses = [

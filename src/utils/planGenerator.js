@@ -1,13 +1,10 @@
 import { getLatestAttempt } from './testStorage';
 import { awardDailyPlanXP } from './gamification';
-import { isPremiumUser } from './premium';
 
 const PLAN_DATA_KEY = 'class360_daily_plan';
 const PLAN_PROGRESS_KEY = 'class360_daily_plan_progress';
 const PLAN_STREAK_KEY = 'class360_daily_plan_streak';
 const PLAN_ACTIVITY_KEY = 'class360_daily_plan_activity';
-const PLAN_STREAK_STATUS_KEY = 'class360_streak_status';
-const PLAN_STREAK_ACTIVITY_KEY = 'class360_streak_activity';
 const PLAN_TASK_LINKS_KEY = 'class360_daily_plan_task_links';
 const PLAN_MIGRATION_KEY = 'class360_daily_plan_migrated_v3';
 
@@ -476,136 +473,6 @@ function saveActivity(activity) {
   writeJSON(PLAN_ACTIVITY_KEY, activity);
 }
 
-function loadStreakActivity() {
-  return readJSON(PLAN_STREAK_ACTIVITY_KEY, {});
-}
-
-function saveStreakActivity(activity) {
-  writeJSON(PLAN_STREAK_ACTIVITY_KEY, activity);
-}
-
-function todayKey(date = new Date()) {
-  return safeDateKey(date);
-}
-
-function previousDateKey(dateKey) {
-  const date = new Date(`${dateKey}T00:00:00`);
-  date.setDate(date.getDate() - 1);
-  return safeDateKey(date);
-}
-
-function dateKeyToDate(key) {
-  return new Date(`${key}T00:00:00`);
-}
-
-function daysBetween(dateA, dateB) {
-  return Math.round((dateA.getTime() - dateB.getTime()) / 86400000);
-}
-
-function getDefaultStreakData() {
-  return {
-    currentStreak: 0,
-    longestStreak: 0,
-    lastActiveDay: null,
-    lastUpdatedAt: null,
-    totalStudyDays: 0,
-    streakFreezeCount: 1,
-    lastFreezeUsedAt: null,
-  };
-}
-
-export function getStreakData() {
-  return readJSON(PLAN_STREAK_STATUS_KEY, getDefaultStreakData());
-}
-
-export function getStreakState(streakData = getStreakData()) {
-  const today = todayKey();
-  const yesterday = previousDateKey(today);
-  const activeToday = streakData.lastActiveDay === today;
-  const activeYesterday = streakData.lastActiveDay === yesterday;
-  const lastActiveDate = streakData.lastActiveDay ? dateKeyToDate(streakData.lastActiveDay) : null;
-  const gapDays = lastActiveDate ? daysBetween(dateKeyToDate(today), lastActiveDate) - 1 : null;
-  const atRisk = !activeToday && activeYesterday;
-  const broken = !activeToday && streakData.lastActiveDay && gapDays >= 1 && !atRisk;
-  const canFreeze = isPremiumUser() && Number(streakData.streakFreezeCount || 0) > 0 && gapDays === 1;
-  let riskMessage = null;
-  const currentStreak = Number(streakData.currentStreak || 0);
-
-  if (atRisk) {
-    riskMessage = 'Complete one task today to keep your streak alive.';
-  } else if (broken) {
-    riskMessage = 'Your streak has cooled off. Resume consistent activity to rebuild.';
-  } else if (currentStreak === 0) {
-    riskMessage = 'Start today and build a winning streak.';
-  }
-
-  return {
-    ...streakData,
-    activeToday,
-    atRisk,
-    broken,
-    canFreeze,
-    riskMessage,
-    dayLabel: currentStreak > 0 ? `Day ${currentStreak}` : 'No streak yet',
-  };
-}
-
-export function recordDailyActivity(activityType = 'study', count = 1, timestamp = new Date()) {
-  const day = todayKey(timestamp);
-  const normalizedType = String(activityType || 'study').trim().toLowerCase();
-  const streakActivity = loadStreakActivity();
-  const dayEntry = streakActivity[day] || { types: [], events: 0, updatedAt: null };
-  if (!dayEntry.types.includes(normalizedType)) {
-    dayEntry.types.push(normalizedType);
-  }
-  dayEntry.events = Number(dayEntry.events || 0) + Number(count || 1);
-  dayEntry.updatedAt = timestamp.toISOString();
-  streakActivity[day] = dayEntry;
-  saveStreakActivity(streakActivity);
-
-  const streakData = getStreakData();
-  const todayDate = dateKeyToDate(day);
-  const lastActiveDay = streakData.lastActiveDay;
-  const yesterday = previousDateKey(day);
-  const isSameDay = lastActiveDay === day;
-  const isContinueStreak = lastActiveDay === yesterday;
-  const gapDays = lastActiveDay ? daysBetween(todayDate, dateKeyToDate(lastActiveDay)) - 1 : null;
-  let currentStreak = Number(streakData.currentStreak || 0);
-  let longestStreak = Number(streakData.longestStreak || 0);
-  let totalStudyDays = Number(streakData.totalStudyDays || 0);
-  let streakFreezeCount = Number(streakData.streakFreezeCount || 1);
-  let lastFreezeUsedAt = streakData.lastFreezeUsedAt || null;
-
-  if (!isSameDay) {
-    if (!lastActiveDay) {
-      currentStreak = 1;
-    } else if (isContinueStreak) {
-      currentStreak += 1;
-    } else if (gapDays === 1 && isPremiumUser() && streakFreezeCount > 0) {
-      currentStreak += 1;
-      streakFreezeCount -= 1;
-      lastFreezeUsedAt = day;
-    } else {
-      currentStreak = 1;
-    }
-
-    longestStreak = Math.max(longestStreak, currentStreak);
-    totalStudyDays = Object.keys(streakActivity).length;
-  }
-
-  const nextData = {
-    currentStreak,
-    longestStreak,
-    lastActiveDay: day,
-    lastUpdatedAt: timestamp.toISOString(),
-    totalStudyDays,
-    streakFreezeCount,
-    lastFreezeUsedAt,
-  };
-  writeJSON(PLAN_STREAK_STATUS_KEY, nextData);
-  return nextData;
-}
-
 function readTaskLinks() {
   return readJSON(PLAN_TASK_LINKS_KEY, {});
 }
@@ -673,7 +540,6 @@ export function savePlanProgress(taskId, completed = true) {
   });
 
   if (completed && !wasCompleted) {
-    recordDailyActivity('study');
     awardDailyPlanXP({
       taskCompleted: true,
       streak,
@@ -730,11 +596,6 @@ export function getPlanProgress() {
 }
 
 export function getStreak() {
-  const streakStatus = readJSON(PLAN_STREAK_STATUS_KEY, null);
-  if (streakStatus && typeof streakStatus.currentStreak === 'number') {
-    return Number(streakStatus.currentStreak || 0);
-  }
-
   const streakData = readJSON(PLAN_STREAK_KEY, {
     streak: 0,
     updatedAt: null,

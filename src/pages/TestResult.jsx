@@ -352,19 +352,17 @@ export default function TestResult() {
             }
           >
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {ranks
-                .filter((rank) => rank.label !== 'School Rank')
-                .map((rank) => (
-                  <motion.div
-                    key={rank.label}
-                    whileHover={{ y: -4 }}
-                    className="rounded-[1.5rem] bg-slate-50 p-5"
-                  >
-                    <Trophy className="h-5 w-5 text-amber-500" />
-                    <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{rank.label}</p>
-                    <p className="mt-1 font-display text-3xl font-bold text-slate-950">{rank.value}</p>
-                  </motion.div>
-                ))}
+              {ranks.map((rank) => (
+                <motion.div
+                  key={rank.label}
+                  whileHover={{ y: -4 }}
+                  className="rounded-[1.5rem] bg-slate-50 p-5"
+                >
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{rank.label}</p>
+                  <p className="mt-1 font-display text-3xl font-bold text-slate-950">{rank.value}</p>
+                </motion.div>
+              ))}
               <motion.div whileHover={{ y: -4 }} className="rounded-[1.5rem] bg-blue-600 p-5 text-white shadow-glow">
                 <Crown className="h-5 w-5 text-cyan-200" />
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/60">Recovery Rank Boost</p>

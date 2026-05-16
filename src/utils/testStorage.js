@@ -1,5 +1,5 @@
 import { awardTestCompletionXP, calculateTestXpEarned } from './gamification';
-import { getStreak, recordDailyActivity } from './planGenerator';
+import { getStreak } from './planGenerator';
 import { recordDailyTestUsage } from './premium';
 
 const TEST_ATTEMPTS_KEY = 'class360_test_attempts';
@@ -57,7 +57,6 @@ export function saveTestAttempt(attempt) {
   const nextAttempts = [safeAttempt, ...attempts].slice(0, 50);
   localStorage.setItem(TEST_ATTEMPTS_KEY, JSON.stringify(nextAttempts));
   recordDailyTestUsage();
-  recordDailyActivity('test');
   const streak = getStreak();
   awardTestCompletionXP({
     percentage: safeAttempt.percentage,

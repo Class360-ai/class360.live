@@ -56,7 +56,7 @@ import {
 import { getFriendlySubjectLabel, TEST_SETUP_KEY } from '../utils/testFlow';
 import { getStoredUser, updateStoredUser } from '../utils/authStorage';
 import { clearTestAttempts, getLatestAttempt, getTestAttempts } from '../utils/testStorage';
-import { getPlanCompletionCount, getRevisionCalendar, getStreakData, getStreakState } from '../utils/planGenerator';
+import { getPlanCompletionCount, getStreak } from '../utils/planGenerator';
 import { BADGE_DEFINITIONS, getGamificationSnapshot } from '../utils/gamification';
 import { generateReferralCode, getCurrentUserRank, getLeaderboardData } from '../utils/leaderboard';
 import { canTakeFullTestToday, isPremiumUser, requestUpgrade } from '../utils/premium';
@@ -315,9 +315,7 @@ export default function Dashboard() {
     ? Math.round(attempts.reduce((sum, attempt) => sum + Number(attempt.percentage || 0), 0) / totalTests)
     : 74;
   const bestScore = totalTests ? Math.max(...attempts.map((attempt) => Number(attempt.percentage || 0))) : 86;
-  const streakData = getStreakData();
-  const streakState = getStreakState(streakData);
-  const streak = Number(streakData.currentStreak || 0);
+  const streak = getStreak();
   const planCounts = getPlanCompletionCount();
   const recommended = getRecommendedSetup(attempts);
   const weakTopics = countTopics(attempts);
@@ -329,7 +327,6 @@ export default function Dashboard() {
   ];
   const readiness = getReadiness(averagePercentage, totalTests, streak);
   const focusScore = getFocusScore(attempts, streak);
-  const dailyPlan = getTodayPlan();
   const gamification = getGamificationSnapshot({
     attempts,
     streak,
@@ -337,10 +334,8 @@ export default function Dashboard() {
     recentScore: latestAttempt?.percentage || 0,
   });
   const levelFloor = gamification.floor || 0;
-  const nextFloor = gamification.nextFloor ?? Math.max(gamification.xp + 300, 1000);
+  const nextFloor = gamification.nextFloor || Math.max(gamification.xp + 300, 1000);
   const levelProgress = Math.min(100, Math.round(((gamification.xp - levelFloor) / Math.max(1, nextFloor - levelFloor)) * 100));
-  const unlockedBadgeIds = new Set((gamification.unlocked || []).map((badge) => badge.id));
-  const nextBadge = BADGE_DEFINITIONS.find((badge) => !unlockedBadgeIds.has(badge.id));
   const referralCode = generateReferralCode(user || {});
   const leaderboard = getLeaderboardData('Overall').slice(0, 5);
   const currentRank = getCurrentUserRank('Overall');
@@ -370,17 +365,16 @@ export default function Dashboard() {
       time: Math.max(8, Math.round(Number(attempt.timeSpentSeconds || 0) / 60)),
     }));
   }, [attempts]);
-  const revisionCalendar = getRevisionCalendar(attempts);
-  const consistencyData = revisionCalendar.map((day) => ({
-    day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(`${day.key}T00:00:00`).getDay()] || day.label.slice(-1),
-    done: Boolean(day.active),
-  }));
+  const consistencyData = [
+    { day: 'M', done: 1 },
+    { day: 'T', done: 1 },
+    { day: 'W', done: 1 },
+    { day: 'T', done: streak >= 4 ? 1 : 0 },
+    { day: 'F', done: streak >= 5 ? 1 : 0 },
+    { day: 'S', done: streak >= 6 ? 1 : 0 },
+    { day: 'S', done: streak >= 7 ? 1 : 0 },
+  ];
   const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
-  const streakGoalDays = 3;
-  const streakGoalRemaining = Math.max(0, streakGoalDays - Number(streakState.currentStreak || 0));
-  const streakCalendarSubtitle = streakGoalRemaining > 0
-    ? `${streakGoalRemaining} more day${streakGoalRemaining === 1 ? '' : 's'} to unlock Focus Warrior Badge.`
-    : 'Focus Warrior badge is ready with your current streak.';
   const planProgress = planCounts.total ? Math.round((planCounts.completed / planCounts.total) * 100) : 68;
   const profileFields = ['fullName', 'classGoal', 'boardStream', 'preferredLanguage'];
   const profileCompleteCount = profileFields.filter((key) => Boolean(user?.[key])).length;
@@ -424,10 +418,6 @@ export default function Dashboard() {
   const openUpgrade = (reason) => {
     trackEvent('dashboard_upgrade_requested', { reason });
     requestUpgrade(reason);
-  };
-
-  const scrollToDailyPlan = () => {
-    document.getElementById('daily-plan-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const launchTest = (subject, difficulty, questionCount = 10) => {
@@ -525,48 +515,35 @@ export default function Dashboard() {
           <motion.section
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#0B1020] via-[#111827] to-[#0F172A] p-6 text-white shadow-[0_45px_120px_-50px_rgba(15,23,42,0.95)] sm:p-8 lg:p-10"
+            className="relative overflow-hidden rounded-[2.25rem] bg-slate-950 p-6 text-white shadow-premium sm:p-8 lg:p-10"
           >
-            <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-15" />
-            <div className="absolute left-6 top-10 h-36 w-36 rounded-full bg-blue-500/15 blur-3xl" />
-            <div className="absolute right-8 top-[-4rem] h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
-            <div className="absolute right-[-4rem] bottom-[-3rem] h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
-            <div className="relative grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-start">
+            <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-20" />
+            <div className="absolute right-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" />
+            <div className="absolute bottom-[-10rem] left-[-8rem] h-80 w-80 rounded-full bg-cyan-400/18 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_0_40px_rgba(34,211,238,0.16)] backdrop-blur-xl">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white shadow-glow">
-                    <Brain className="h-5 w-5" />
-                  </div>
-                  <div className="leading-tight">
-                    <div className="text-[13px] font-semibold text-white/90">AI Study Coach</div>
-                    <div className="text-xs text-white/60">for {firstName}</div>
-                  </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 backdrop-blur">
+                  <Brain className="h-4 w-4 text-cyan-300" />
+                  AI Study Coach for {firstName}
                 </div>
-                <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl leading-tight">
+                <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
                   Study the right things, in the right order.
                 </h1>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+                <p className="mt-5 max-w-3xl text-base leading-8 text-white/72">
                   Your AI-powered plan adapts to weak topics, recent mistakes, streaks, and exam goals.
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={practiceWeakTopics}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 px-7 py-4 text-sm font-semibold text-slate-950 shadow-[0_16px_50px_-26px_rgba(56,189,248,0.85)] transition hover:-translate-y-0.5"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-glow transition hover:-translate-y-0.5"
                   >
                     Practice Weak Topics <ArrowRight className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={scrollToDailyPlan}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
-                  >
-                    Complete Today's Plan <CheckCircle2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => navigate('/test-series')}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
                   >
                     Take Full Test <ClipboardList className="h-4 w-4" />
                   </button>
@@ -574,75 +551,38 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { label: 'Streak', value: streakState.dayLabel, note: streakState.activeToday ? 'Live streak tracking' : streakState.atRisk ? streakState.riskMessage : 'Start your first active day', icon: Flame, accent: 'from-amber-400 to-orange-400' },
-                  { label: 'Daily completion', value: `${planProgress}%`, note: 'Tasks finished today', icon: CheckCircle2, accent: 'from-emerald-400 to-teal-400' },
-                  { label: 'Focus score', value: `${focusScore}/100`, note: 'AI concentration index', icon: Target, accent: 'from-cyan-400 to-blue-500' },
-                  { label: 'Exam readiness', value: `${readiness}%`, note: 'Confidence meter', icon: GraduationCap, accent: 'from-blue-500 to-indigo-500' },
+                  { label: 'Current streak', value: `${Math.max(streak, 4)} days`, icon: Flame, color: 'text-orange-300' },
+                  { label: 'Daily completion', value: `${planProgress}%`, icon: CheckCircle2, color: 'text-emerald-300' },
+                  { label: 'Focus score', value: `${focusScore}/100`, icon: Target, color: 'text-cyan-300' },
+                  { label: 'Exam readiness', value: `${readiness}%`, icon: GraduationCap, color: 'text-blue-300' },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <motion.div
-                      key={item.label}
-                      whileHover={{ y: -4, scale: 1.01 }}
-                      className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur-xl transition"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{item.label}</p>
-                          <p className="mt-3 font-display text-3xl font-bold text-white">{item.value}</p>
-                        </div>
-                        <div className={`rounded-3xl bg-gradient-to-br ${item.accent} p-4 text-white shadow-[0_18px_55px_-30px_rgba(56,189,248,0.9)]`}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                      </div>
-                      <p className="mt-4 text-sm leading-6 text-slate-400">{item.note}</p>
-                    </motion.div>
+                    <div key={item.label} className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+                      <Icon className={`h-5 w-5 ${item.color}`} />
+                      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/50">{item.label}</p>
+                      <p className="mt-2 font-display text-3xl font-bold">{item.value}</p>
+                    </div>
                   );
                 })}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.7)] backdrop-blur-xl sm:col-span-2"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">AI recommendation engine</p>
-                      <p className="mt-2 text-base font-semibold text-white">{recommended.label}</p>
-                    </div>
-                    <span className="rounded-full bg-slate-950/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200 shadow-[0_0_24px_rgba(56,189,248,0.25)]">
-                      {recommended.difficulty.toUpperCase()}
-                    </span>
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl sm:col-span-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-white/70">AI recommendation engine</span>
+                    <span className="text-cyan-200">{recommended.difficulty.toUpperCase()}</span>
                   </div>
-                  <div className="mt-6 rounded-full bg-white/10 p-1">
-                    <div className="relative overflow-hidden rounded-full bg-slate-950/60 h-4">
-                      <motion.div
-                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-500 shadow-[0_0_30px_rgba(56,189,248,0.5)]"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${readiness}%` }}
-                        transition={{ duration: 1.1, ease: 'easeOut' }}
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-sm text-slate-400">
-                      <span>Weak topic detected</span>
-                      <span>{streakState.canFreeze ? 'Streak freeze available' : 'Streak protection locked'}</span>
-                    </div>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-400"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${readiness}%` }}
+                      transition={{ duration: 0.9 }}
+                    />
                   </div>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    {commonWeakTopics.slice(0, 3).map((topic) => (
-                      <div key={topic.topic} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 shadow-[0_20px_50px_-40px_rgba(56,189,248,0.35)]">
-                        <p className="font-semibold text-white">{topic.topic}</p>
-                        <p className="mt-1 text-xs text-slate-400">{topic.count} weak tasks</p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                  <p className="mt-4 text-sm leading-6 text-white/72">{recommended.label}</p>
+                </div>
               </div>
             </div>
           </motion.section>
-
-          <div id="daily-plan-section">
-            <DailyPlan plan={dailyPlan} />
-          </div>
 
           {!isProfileComplete ? (
             <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
@@ -776,7 +716,7 @@ export default function Dashboard() {
             <DashboardSection
               eyebrow="Streak system"
               title="Daily consistency calendar"
-              subtitle={streakCalendarSubtitle}
+              subtitle="3 more days to unlock Focus Warrior Badge."
             >
               <div className="mt-6 grid grid-cols-7 gap-2">
                 {consistencyData.map((day, index) => (
@@ -793,11 +733,7 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-                {streakState.atRisk
-                  ? streakState.riskMessage
-                  : streakState.broken
-                  ? streakState.riskMessage
-                  : `${streakState.currentStreak || 0} day streak. ${streakState.canFreeze ? 'Premium streak freeze is ready.' : 'Keep practicing daily to protect your streak.'}`}
+                Weekly XP multiplier: 1.4x active after 5 consistent days.
               </div>
             </DashboardSection>
 
@@ -817,8 +753,8 @@ export default function Dashboard() {
                   <p className="mt-3 text-xs text-white/55">{nextFloor - gamification.xp} XP to next level</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {[...BADGE_DEFINITIONS, ...extraBadges].map((badge) => {
-                    const unlocked = unlockedBadgeIds.has(badge.id);
+                  {[...BADGE_DEFINITIONS, ...extraBadges].map((badge, index) => {
+                    const unlocked = gamification.unlocked?.some((item) => item.id === badge.id) || index < 3;
                     const Icon = badge.icon || Award;
                     return (
                       <div
@@ -842,9 +778,6 @@ export default function Dashboard() {
                     );
                   })}
                 </div>
-              </div>
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
-                {nextBadge ? `Next reward: ${nextBadge.title}` : 'Core progress loop complete. Keep climbing!'}
               </div>
             </DashboardSection>
           </div>
