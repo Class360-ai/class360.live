@@ -329,6 +329,7 @@ export default function Dashboard() {
   ];
   const readiness = getReadiness(averagePercentage, totalTests, streak);
   const focusScore = getFocusScore(attempts, streak);
+  const dailyPlan = getTodayPlan();
   const gamification = getGamificationSnapshot({
     attempts,
     streak,
@@ -369,21 +370,17 @@ export default function Dashboard() {
       time: Math.max(8, Math.round(Number(attempt.timeSpentSeconds || 0) / 60)),
     }));
   }, [attempts]);
-  const consistencyData = [
-    { day: 'M', done: 1 },
-    { day: 'T', done: 1 },
-    { day: 'W', done: 1 },
-    { day: 'T', done: streak >= 4 ? 1 : 0 },
-    { day: 'F', done: streak >= 5 ? 1 : 0 },
-    { day: 'S', done: streak >= 6 ? 1 : 0 },
-    { day: 'S', done: streak >= 7 ? 1 : 0 },
-  ];
-  const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
   const revisionCalendar = getRevisionCalendar(attempts);
   const consistencyData = revisionCalendar.map((day) => ({
     day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(`${day.key}T00:00:00`).getDay()] || day.label.slice(-1),
     done: Boolean(day.active),
   }));
+  const readinessData = [{ name: 'Readiness', value: readiness, fill: '#2563eb' }];
+  const streakGoalDays = 3;
+  const streakGoalRemaining = Math.max(0, streakGoalDays - Number(streakState.currentStreak || 0));
+  const streakCalendarSubtitle = streakGoalRemaining > 0
+    ? `${streakGoalRemaining} more day${streakGoalRemaining === 1 ? '' : 's'} to unlock Focus Warrior Badge.`
+    : 'Focus Warrior badge is ready with your current streak.';
   const planProgress = planCounts.total ? Math.round((planCounts.completed / planCounts.total) * 100) : 68;
   const profileFields = ['fullName', 'classGoal', 'boardStream', 'preferredLanguage'];
   const profileCompleteCount = profileFields.filter((key) => Boolean(user?.[key])).length;
@@ -632,6 +629,8 @@ export default function Dashboard() {
             </div>
           </motion.section>
 
+          <DailyPlan plan={dailyPlan} />
+
           {!isProfileComplete ? (
             <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -764,7 +763,7 @@ export default function Dashboard() {
             <DashboardSection
               eyebrow="Streak system"
               title="Daily consistency calendar"
-              subtitle="3 more days to unlock Focus Warrior Badge."
+              subtitle={streakCalendarSubtitle}
             >
               <div className="mt-6 grid grid-cols-7 gap-2">
                 {consistencyData.map((day, index) => (
@@ -830,6 +829,9 @@ export default function Dashboard() {
                     );
                   })}
                 </div>
+              </div>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                {nextBadge ? `Next reward: ${nextBadge.title}` : 'Core progress loop complete. Keep climbing!'}
               </div>
             </DashboardSection>
           </div>
