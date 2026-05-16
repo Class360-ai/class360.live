@@ -153,10 +153,10 @@ export default function TestSeries() {
               </div>
               <div className="mt-8 grid grid-cols-3 gap-3">
                 {[
-                  ['1.2M+', 'attempts'],
-                  ['98K+', 'daily learners'],
-                  ['92%', 'better recall'],
-                ].map(([value, label]) => (
+                    ['2.5K+', 'tests taken'],
+                    ['1.5K+', 'daily learners'],
+                    ['92%', 'better recall'],
+                  ].map(([value, label]) => (
                   <div key={label} className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
                     <p className="font-display text-2xl font-bold">{value}</p>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">{label}</p>
