@@ -127,7 +127,7 @@ export default function TestSeries() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 backdrop-blur">
                 <Radio className="h-4 w-4 text-cyan-300" />
-                42,318 students practicing live
+                1000k students practicing live
               </div>
               <h1 className="mt-6 font-display text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
                 Crack every exam with AI-powered test series.
@@ -181,17 +181,6 @@ export default function TestSeries() {
                   <motion.div className="h-full rounded-full bg-cyan-300" initial={{ width: '30%' }} animate={{ width: '84%' }} transition={{ duration: 1.1 }} />
                 </div>
               </motion.article>
-              <article className="rounded-[2rem] border border-white/12 bg-white p-5 text-slate-950 shadow-premium">
-                <p className="text-sm font-semibold text-blue-700">Live rank pulse</p>
-                <div className="mt-5 space-y-3">
-                  {['JEE Sprint', 'NEET Mock', 'CBSE Boards'].map((item, index) => (
-                    <div key={item} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm font-semibold">{item}</span>
-                      <span className="text-sm font-bold text-blue-700">#{index + 1}</span>
-                    </div>
-                  ))}
-                </div>
-              </article>
               <article className="rounded-[2rem] border border-white/12 bg-white/10 p-5 backdrop-blur-xl sm:col-span-2">
                 <div className="grid gap-3 sm:grid-cols-3">
                   {aiInsights.map((insight) => (
