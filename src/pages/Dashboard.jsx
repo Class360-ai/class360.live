@@ -520,13 +520,18 @@ export default function Dashboard() {
             <div className="absolute inset-0 bg-hero-grid bg-[length:34px_34px] opacity-20" />
             <div className="absolute right-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" />
             <div className="absolute bottom-[-10rem] left-[-8rem] h-80 w-80 rounded-full bg-cyan-400/18 blur-3xl" />
-            <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-cyan-100 backdrop-blur">
-                  <Brain className="h-4 w-4 text-cyan-300" />
-                  AI Study Coach for {firstName}
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-gradient-to-r from-slate-900/60 via-slate-800/40 to-slate-900/40 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-sm backdrop-blur">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 text-white shadow-glow">
+                    <Brain className="h-5 w-5" />
+                  </div>
+                  <div className="leading-tight">
+                    <div className="text-[13px] font-semibold text-white/90">AI Study Coach</div>
+                    <div className="text-xs text-white/60">for {firstName}</div>
+                  </div>
                 </div>
-                <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-tight">
                   Study the right things, in the right order.
                 </h1>
                 <p className="mt-5 max-w-3xl text-base leading-8 text-white/72">
@@ -536,7 +541,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={practiceWeakTopics}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-glow transition hover:-translate-y-0.5"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_10px_40px_-20px_rgba(37,99,235,0.45)] transition hover:-translate-y-0.5"
                   >
                     Practice Weak Topics <ArrowRight className="h-4 w-4" />
                   </button>
@@ -551,28 +556,34 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { label: 'Current streak', value: `${Math.max(streak, 4)} days`, icon: Flame, color: 'text-orange-300' },
+                  { label: 'Current streak', value: `${Math.max(streak, 4)} days`, icon: Flame, color: 'text-amber-300' },
                   { label: 'Daily completion', value: `${planProgress}%`, icon: CheckCircle2, color: 'text-emerald-300' },
                   { label: 'Focus score', value: `${focusScore}/100`, icon: Target, color: 'text-cyan-300' },
                   { label: 'Exam readiness', value: `${readiness}%`, icon: GraduationCap, color: 'text-blue-300' },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-                      <Icon className={`h-5 w-5 ${item.color}`} />
-                      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/50">{item.label}</p>
-                      <p className="mt-2 font-display text-3xl font-bold">{item.value}</p>
+                    <div key={item.label} className="rounded-2xl border border-white/6 bg-gradient-to-br from-slate-900/60 via-slate-950/40 to-slate-900/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">{item.label}</p>
+                          <p className="mt-2 font-display text-3xl font-bold text-white">{item.value}</p>
+                        </div>
+                        <div className={`rounded-2xl p-3 bg-white/6 ${item.color}`}>
+                          <Icon className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
-                <div className="rounded-[1.5rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl sm:col-span-2">
+                <div className="rounded-2xl border border-white/6 bg-gradient-to-br from-slate-900/60 via-slate-950/40 to-slate-900/30 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-md sm:col-span-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-white/70">AI recommendation engine</span>
-                    <span className="text-cyan-200">{recommended.difficulty.toUpperCase()}</span>
+                    <span className="text-cyan-200 font-semibold">{recommended.difficulty.toUpperCase()}</span>
                   </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/8">
                     <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-400"
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-indigo-500 shadow-[0_8px_20px_-12px_rgba(59,130,246,0.6)]"
                       initial={{ width: 0 }}
                       animate={{ width: `${readiness}%` }}
                       transition={{ duration: 0.9 }}
